@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MathQuest - 6th Grade Math Practice</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Fredoka+One&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Floating particles background -->
+    <div id="particles"></div>
+
+    <!-- Main App Container -->
+    <div id="app">
+
+        <!-- ===== TITLE SCREEN ===== -->
+        <div id="screen-title" class="screen active">
+            <div class="title-container">
+                <div class="mascot-large">
+                    <div class="mascot-sprite" id="mascot-title">
+                        <div class="mascot-body"></div>
+                        <div class="mascot-face">
+                            <div class="mascot-eyes">
+                                <div class="eye left"></div>
+                                <div class="eye right"></div>
+                            </div>
+                            <div class="mascot-mouth happy"></div>
+                        </div>
+                        <div class="mascot-hat"></div>
+                        <div class="sparkle s1">&#10022;</div>
+                        <div class="sparkle s2">&#10022;</div>
+                        <div class="sparkle s3">&#10022;</div>
+                    </div>
+                </div>
+                <h1 class="game-title">
+                    <span class="title-math">Math</span><span class="title-quest">Quest</span>
+                </h1>
+                <p class="subtitle">6th Grade Math Practice</p>
+                <p class="subtitle-small">Massachusetts Curriculum Standards</p>
+                <button class="btn btn-start" onclick="App.showTopicSelect()">
+                    Start Practice!
+                    <span class="btn-sparkle">&#9733;</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ===== TOPIC SELECT SCREEN ===== -->
+        <div id="screen-topics" class="screen">
+            <div class="top-bar">
+                <button class="btn btn-back" onclick="App.showTitle()">&#8592; Back</button>
+                <div class="player-stats">
+                    <div class="stat">
+                        <span class="stat-icon">&#9733;</span>
+                        <span class="stat-value" id="stats-xp-topics">0</span>
+                        <span class="stat-label">XP</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-icon">&#9775;</span>
+                        <span class="stat-value" id="stats-level-topics">1</span>
+                        <span class="stat-label">Level</span>
+                    </div>
+                </div>
+            </div>
+
+            <h2 class="screen-title">Choose Your Quest</h2>
+
+            <div class="topic-grid">
+                <!-- Fractions -->
+                <div class="topic-card" onclick="App.selectTopic('fractions')">
+                    <div class="topic-icon">&#189;</div>
+                    <h3>Fractions</h3>
+                    <p>Add, subtract, multiply & divide fractions and mixed numbers</p>
+                    <div class="topic-standard">MA Standard 6.NS.1</div>
+                    <div class="topic-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-fractions"></div>
+                        </div>
+                        <span class="progress-text" id="progress-text-fractions">0 completed</span>
+                    </div>
+                </div>
+
+                <!-- Multiplication -->
+                <div class="topic-card" onclick="App.selectTopic('multiplication')">
+                    <div class="topic-icon">&#215;</div>
+                    <h3>Multiplication</h3>
+                    <p>Multi-digit & decimal multiplication</p>
+                    <div class="topic-standard">MA Standard 6.NS.2 / 6.NS.3</div>
+                    <div class="topic-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-multiplication"></div>
+                        </div>
+                        <span class="progress-text" id="progress-text-multiplication">0 completed</span>
+                    </div>
+                </div>
+
+                <!-- Division -->
+                <div class="topic-card" onclick="App.selectTopic('division')">
+                    <div class="topic-icon">&#247;</div>
+                    <h3>Division</h3>
+                    <p>Multi-digit & decimal division, remainders</p>
+                    <div class="topic-standard">MA Standard 6.NS.2 / 6.NS.3</div>
+                    <div class="topic-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-division"></div>
+                        </div>
+                        <span class="progress-text" id="progress-text-division">0 completed</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== PRACTICE SCREEN ===== -->
+        <div id="screen-practice" class="screen">
+            <div class="top-bar">
+                <button class="btn btn-back" onclick="App.showTopicSelect()">&#8592; Topics</button>
+                <div class="player-stats">
+                    <div class="stat streak-stat">
+                        <span class="stat-icon">&#128293;</span>
+                        <span class="stat-value" id="stats-streak">0</span>
+                        <span class="stat-label">Streak</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-icon">&#9733;</span>
+                        <span class="stat-value" id="stats-xp">0</span>
+                        <span class="stat-label">XP</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-icon">&#9775;</span>
+                        <span class="stat-value" id="stats-level">1</span>
+                        <span class="stat-label">Level</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- XP Bar -->
+            <div class="xp-bar-container">
+                <div class="xp-bar">
+                    <div class="xp-fill" id="xp-fill"></div>
+                </div>
+                <span class="xp-text" id="xp-text">0 / 100 XP to Level 2</span>
+            </div>
+
+            <!-- Mascot (small) -->
+            <div class="mascot-small" id="mascot-practice">
+                <div class="mascot-sprite small">
+                    <div class="mascot-body"></div>
+                    <div class="mascot-face">
+                        <div class="mascot-eyes">
+                            <div class="eye left"></div>
+                            <div class="eye right"></div>
+                        </div>
+                        <div class="mascot-mouth happy"></div>
+                    </div>
+                    <div class="mascot-hat"></div>
+                </div>
+                <div class="speech-bubble" id="speech-bubble">
+                    <p id="mascot-message">You got this!</p>
+                </div>
+            </div>
+
+            <!-- Question Area -->
+            <div class="question-card" id="question-card">
+                <div class="question-header">
+                    <span class="question-topic" id="question-topic">Fractions</span>
+                    <span class="question-number" id="question-number">Q1</span>
+                </div>
+                <div class="question-body">
+                    <p class="question-text" id="question-text">Loading...</p>
+                    <div class="question-visual" id="question-visual"></div>
+                </div>
+                <div class="answer-area">
+                    <div id="answer-input-area">
+                        <!-- Dynamic answer inputs go here -->
+                    </div>
+                    <button class="btn btn-submit" id="btn-submit" onclick="App.submitAnswer()">
+                        Check Answer &#10003;
+                    </button>
+                </div>
+                <div class="feedback" id="feedback"></div>
+                <div class="explanation" id="explanation"></div>
+                <button class="btn btn-next hidden" id="btn-next" onclick="App.nextQuestion()">
+                    Next Question &#8594;
+                </button>
+            </div>
+
+            <!-- Score summary for session -->
+            <div class="session-stats">
+                <div class="session-stat">
+                    <span class="session-stat-value" id="session-correct">0</span>
+                    <span class="session-stat-label">Correct</span>
+                </div>
+                <div class="session-stat">
+                    <span class="session-stat-value" id="session-attempted">0</span>
+                    <span class="session-stat-label">Attempted</span>
+                </div>
+                <div class="session-stat">
+                    <span class="session-stat-value" id="session-accuracy">0%</span>
+                    <span class="session-stat-label">Accuracy</span>
+                </div>
+                <div class="session-stat">
+                    <span class="session-stat-value" id="session-best-streak">0</span>
+                    <span class="session-stat-label">Best Streak</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Level Up Modal -->
+    <div class="modal-overlay hidden" id="modal-levelup">
+        <div class="modal">
+            <div class="modal-sparkles">
+                <span>&#10022;</span><span>&#9733;</span><span>&#10022;</span>
+                <span>&#9733;</span><span>&#10022;</span><span>&#9733;</span>
+            </div>
+            <h2>Level Up!</h2>
+            <div class="level-up-number" id="levelup-number">2</div>
+            <p id="levelup-message">Amazing work! Keep going!</p>
+            <button class="btn btn-start" onclick="App.closeLevelUp()">Continue!</button>
+        </div>
+    </div>
+
+    <script src="js/questions.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
