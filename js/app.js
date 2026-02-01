@@ -1,13 +1,14 @@
 /**
  * MathQuest - Main Application
  *
- * Handles UI, scoring (no penalty!), state, and interactions.
+ * Handles UI, scoring (no penalty!), story progression, and interactions.
  */
 
 const App = (() => {
     // --- State ---
     const state = {
         currentScreen: 'title',
+        previousScreen: null,
         currentTopic: null,
         currentQuestion: null,
         questionNumber: 0,
@@ -18,41 +19,45 @@ const App = (() => {
         sessionCorrect: 0,
         sessionAttempted: 0,
         answered: false,
+        lastAnswerCorrect: false,
+        storyPagesUnlocked: 0,
+        storyCompleted: false,
+        pendingStoryPage: null, // page index to show after answer
         topicStats: {
-            fractions: { correct: 0, attempted: 0 },
-            multiplication: { correct: 0, attempted: 0 },
-            division: { correct: 0, attempted: 0 }
+            multiply_fractions: { correct: 0, attempted: 0 },
+            divide_fractions: { correct: 0, attempted: 0 }
         }
     };
 
-    // --- XP Config ---
+    // --- Config ---
     const XP_CORRECT = 10;
-    const XP_STREAK_BONUS = 5;      // extra per streak milestone
-    const STREAK_MILESTONE = 3;      // every N correct in a row
+    const XP_STREAK_BONUS = 5;
+    const STREAK_MILESTONE = 3;
     const XP_PER_LEVEL = 100;
+    const TOTAL_STORY_PAGES = Story.getTotalPages();
 
     // --- Mascot Messages ---
     const messages = {
         greeting: [
-            "You got this!",
-            "Let's do some math!",
-            "Ready when you are!",
+            "You got this! Let's unlock the next page!",
+            "Ready for some fractions?",
             "I believe in you!",
-            "Math time! Let's go!"
+            "Let's continue the story!",
+            "Math time! What happens next?"
         ],
         correct: [
             "Amazing! You nailed it!",
-            "Correct! Great work!",
+            "Correct! New story page incoming!",
             "That's right! Keep it up!",
             "Perfect! You're on fire!",
-            "Sugoi! (That's awesome!)",
+            "Sugoi! (That means awesome!)",
             "Brilliant answer!",
-            "You're a math wizard!",
+            "You're a fraction wizard!",
             "Exactly right!"
         ],
         streak: [
-            "You're on a streak! Keep going!",
-            "Unstoppable! What a streak!",
+            "You're on a streak! The story keeps going!",
+            "Unstoppable! What a combo!",
             "Incredible streak! Don't stop!",
             "You're blazing through these!",
             "Combo streak! So cool!"
@@ -65,9 +70,15 @@ const App = (() => {
             "No worries! Practice makes perfect!",
             "Nice try! Let's keep going!"
         ],
+        storyUnlock: [
+            "New page unlocked! Let's read it!",
+            "The story continues! Check it out!",
+            "You unlocked the next chapter!",
+            "What happens next? Let's find out!"
+        ],
         levelUp: [
             "Level up! You're getting stronger!",
-            "New level! You're amazing!",
+            "New level! Amazing!",
             "Wow, level up! Keep going!",
             "You leveled up! So proud!",
             "Level up! You're a math hero!"
@@ -82,6 +93,7 @@ const App = (() => {
     // --- Screen Management ---
 
     function switchScreen(screenId) {
+        state.previousScreen = state.currentScreen;
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         const screen = document.getElementById(`screen-${screenId}`);
         if (screen) {
@@ -92,6 +104,7 @@ const App = (() => {
 
     function showTitle() {
         switchScreen('title');
+        updateTitleStoryProgress();
     }
 
     function showTopicSelect() {
@@ -109,6 +122,7 @@ const App = (() => {
         state.bestStreak = 0;
         switchScreen('practice');
         updateStatsDisplay();
+        updateStoryBar();
         setMascotMessage(pickMsg('greeting'));
         setMascotMood('happy');
         nextQuestion();
@@ -119,15 +133,16 @@ const App = (() => {
     function nextQuestion() {
         state.questionNumber++;
         state.answered = false;
+        state.lastAnswerCorrect = false;
+        state.pendingStoryPage = null;
         state.currentQuestion = Questions.generate(state.currentTopic);
 
         const q = state.currentQuestion;
+        const topicLabel = state.currentTopic === 'multiply_fractions' ? 'Multiply Fractions' : 'Divide Fractions';
 
-        // Update UI
-        document.getElementById('question-topic').textContent = capitalize(state.currentTopic);
+        document.getElementById('question-topic').textContent = topicLabel;
         document.getElementById('question-number').textContent = `Q${state.questionNumber}`;
         document.getElementById('question-text').innerHTML = q.questionHTML;
-        document.getElementById('question-visual').innerHTML = '';
         document.getElementById('feedback').textContent = '';
         document.getElementById('feedback').className = 'feedback';
         document.getElementById('explanation').textContent = '';
@@ -135,16 +150,16 @@ const App = (() => {
         document.getElementById('btn-submit').disabled = false;
         document.getElementById('btn-next').classList.add('hidden');
 
-        // Build answer input
+        // Update next button text based on whether a story page is pending
+        document.getElementById('btn-next').textContent = 'Next Question \u2192';
+
         buildAnswerInput(q);
 
-        // Focus first input
         setTimeout(() => {
             const firstInput = document.querySelector('#answer-input-area input');
             if (firstInput) firstInput.focus();
         }, 100);
 
-        // Animate card
         const card = document.getElementById('question-card');
         card.classList.remove('pop');
         void card.offsetWidth;
@@ -153,22 +168,15 @@ const App = (() => {
 
     function buildAnswerInput(question) {
         const area = document.getElementById('answer-input-area');
-        area.innerHTML = '';
-
-        if (question.answerType === 'number') {
-            area.innerHTML = `
-                <input type="number" class="answer-input" id="answer-main"
-                       placeholder="Answer" autocomplete="off"
-                       onkeydown="if(event.key==='Enter') App.submitAnswer()">
-            `;
-        } else if (question.answerType === 'decimal') {
-            area.innerHTML = `
-                <input type="number" step="any" class="answer-input" id="answer-main"
-                       placeholder="Answer" autocomplete="off"
-                       onkeydown="if(event.key==='Enter') App.submitAnswer()">
-            `;
-        } else if (question.answerType === 'fraction') {
-            area.innerHTML = `
+        // All questions are fraction type now - provide whole + numerator/denominator
+        area.innerHTML = `
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:center;">
+                <div style="text-align:center;">
+                    <span class="frac-label">Whole (optional)</span>
+                    <input type="number" class="answer-input" id="answer-whole"
+                           placeholder="0" style="width:80px" autocomplete="off"
+                           onkeydown="if(event.key==='Enter') App.submitAnswer()">
+                </div>
                 <div class="fraction-input-group">
                     <span class="frac-label">Numerator</span>
                     <input type="number" class="answer-input" id="answer-num"
@@ -180,73 +188,16 @@ const App = (() => {
                            onkeydown="if(event.key==='Enter') App.submitAnswer()">
                     <span class="frac-label">Denominator</span>
                 </div>
-            `;
-        } else if (question.answerType === 'mixed') {
-            area.innerHTML = `
-                <input type="number" class="answer-input" id="answer-whole"
-                       placeholder="Whole" style="width:80px" autocomplete="off"
-                       onkeydown="if(event.key==='Enter') App.submitAnswer()">
-                <div class="fraction-input-group">
-                    <span class="frac-label">Numerator</span>
-                    <input type="number" class="answer-input" id="answer-num"
-                           placeholder="?" autocomplete="off"
-                           onkeydown="if(event.key==='Enter') App.submitAnswer()">
-                    <div class="frac-line"></div>
-                    <input type="number" class="answer-input" id="answer-den"
-                           placeholder="?" autocomplete="off"
-                           onkeydown="if(event.key==='Enter') App.submitAnswer()">
-                    <span class="frac-label">Denominator</span>
-                </div>
-            `;
-        } else if (question.answerType === 'quotient_remainder') {
-            area.innerHTML = `
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <div style="text-align:center;">
-                        <span class="frac-label">Quotient</span>
-                        <input type="number" class="answer-input" id="answer-quotient"
-                               placeholder="?" autocomplete="off"
-                               onkeydown="if(event.key==='Enter') App.submitAnswer()">
-                    </div>
-                    <span class="operator">R</span>
-                    <div style="text-align:center;">
-                        <span class="frac-label">Remainder</span>
-                        <input type="number" class="answer-input" id="answer-remainder"
-                               placeholder="?" autocomplete="off"
-                               onkeydown="if(event.key==='Enter') App.submitAnswer()">
-                    </div>
-                </div>
-            `;
-        }
+            </div>
+        `;
     }
 
     function getUserAnswer() {
-        const q = state.currentQuestion;
-
-        if (q.answerType === 'number' || q.answerType === 'decimal') {
-            return document.getElementById('answer-main').value;
-        }
-
-        if (q.answerType === 'fraction') {
-            return {
-                num: document.getElementById('answer-num').value,
-                den: document.getElementById('answer-den').value
-            };
-        }
-
-        if (q.answerType === 'mixed') {
-            return {
-                whole: document.getElementById('answer-whole').value,
-                num: document.getElementById('answer-num').value,
-                den: document.getElementById('answer-den').value
-            };
-        }
-
-        if (q.answerType === 'quotient_remainder') {
-            return {
-                quotient: document.getElementById('answer-quotient').value,
-                remainder: document.getElementById('answer-remainder').value
-            };
-        }
+        return {
+            whole: document.getElementById('answer-whole').value,
+            num: document.getElementById('answer-num').value,
+            den: document.getElementById('answer-den').value
+        };
     }
 
     function submitAnswer() {
@@ -255,14 +206,16 @@ const App = (() => {
         const q = state.currentQuestion;
         const userAnswer = getUserAnswer();
 
-        // Basic validation - check if inputs are filled
-        if (!isAnswerFilled(userAnswer, q.answerType)) return;
+        // Need at least numerator and denominator
+        if (userAnswer.num === '' || userAnswer.den === '') return;
 
         state.answered = true;
         state.sessionAttempted++;
         state.topicStats[state.currentTopic].attempted++;
 
         const isCorrect = Questions.checkAnswer(q, userAnswer);
+        state.lastAnswerCorrect = isCorrect;
+
         const card = document.getElementById('question-card');
         const feedback = document.getElementById('feedback');
         const explanation = document.getElementById('explanation');
@@ -280,25 +233,9 @@ const App = (() => {
 
         updateSessionStats();
         updateStatsDisplay();
+        saveState();
 
-        // Focus next button
         setTimeout(() => nextBtn.focus(), 100);
-    }
-
-    function isAnswerFilled(answer, type) {
-        if (type === 'number' || type === 'decimal') {
-            return answer !== '' && answer !== undefined;
-        }
-        if (type === 'fraction') {
-            return answer.num !== '' && answer.den !== '';
-        }
-        if (type === 'mixed') {
-            return answer.den !== '' && answer.num !== '';
-        }
-        if (type === 'quotient_remainder') {
-            return answer.quotient !== '' && answer.remainder !== '';
-        }
-        return false;
     }
 
     function handleCorrect(card, feedback, explanation, question) {
@@ -317,7 +254,27 @@ const App = (() => {
         }
         addXP(xpGain);
 
-        // UI feedback
+        // Unlock story page
+        if (state.storyPagesUnlocked < TOTAL_STORY_PAGES) {
+            state.pendingStoryPage = state.storyPagesUnlocked;
+            state.storyPagesUnlocked++;
+            updateStoryBar();
+
+            // Show toast
+            const page = Story.getPage(state.pendingStoryPage);
+            showStoryToast(state.pendingStoryPage + 1, page.title);
+
+            // Update button
+            const nextBtn = document.getElementById('btn-next');
+            nextBtn.innerHTML = '&#128214; Read Next Story Page! \u2192';
+        }
+
+        // Check story complete
+        if (state.storyPagesUnlocked >= TOTAL_STORY_PAGES && !state.storyCompleted) {
+            state.storyCompleted = true;
+        }
+
+        // UI
         card.classList.remove('pop', 'shake');
         void card.offsetWidth;
         card.classList.add('pop');
@@ -326,24 +283,21 @@ const App = (() => {
         feedback.className = 'feedback correct';
         explanation.textContent = question.explanation;
 
-        // Mark inputs as correct
-        document.querySelectorAll('.answer-input').forEach(input => {
-            input.classList.add('correct');
-        });
+        document.querySelectorAll('.answer-input').forEach(input => input.classList.add('correct'));
 
-        // Mascot
         if (state.streak >= STREAK_MILESTONE && state.streak % STREAK_MILESTONE === 0) {
             setMascotMessage(pickMsg('streak'));
+            setMascotMood('excited');
+        } else if (state.pendingStoryPage !== null) {
+            setMascotMessage(pickMsg('storyUnlock'));
             setMascotMood('excited');
         } else {
             setMascotMessage(pickMsg('correct'));
             setMascotMood('happy');
         }
 
-        // XP popup animation
         showXPPopup(`+${xpGain} XP`);
 
-        // Streak fire animation
         if (state.streak >= 2) {
             const streakEl = document.querySelector('.streak-stat');
             if (streakEl) {
@@ -355,7 +309,6 @@ const App = (() => {
     }
 
     function handleIncorrect(card, feedback, explanation, question) {
-        // NO XP PENALTY! This is the key difference from IXL.
         state.streak = 0;
 
         card.classList.remove('pop', 'shake');
@@ -367,21 +320,146 @@ const App = (() => {
         feedback.className = 'feedback incorrect';
         explanation.textContent = question.explanation;
 
-        // Mark inputs
-        document.querySelectorAll('.answer-input').forEach(input => {
-            input.classList.add('incorrect');
-        });
+        document.querySelectorAll('.answer-input').forEach(input => input.classList.add('incorrect'));
 
-        // Mascot
         setMascotMessage(pickMsg('incorrect'));
         setMascotMood('sad');
+    }
+
+    // --- After answering, decide what to show ---
+
+    function afterAnswer() {
+        if (state.pendingStoryPage !== null) {
+            showStoryPage(state.pendingStoryPage);
+        } else {
+            nextQuestion();
+        }
+    }
+
+    // --- Story System ---
+
+    function showStoryPage(pageIndex) {
+        const page = Story.getPage(pageIndex);
+        if (!page) { nextQuestion(); return; }
+
+        document.getElementById('story-chapter').textContent = `Chapter ${page.chapter}`;
+        document.getElementById('story-page-count').textContent = `Page ${pageIndex + 1} / ${TOTAL_STORY_PAGES}`;
+        document.getElementById('story-page-title').textContent = page.title;
+        document.getElementById('story-art').innerHTML = page.art;
+        document.getElementById('story-text').textContent = page.text;
+
+        // Set mood-based styling
+        const container = document.querySelector('.story-page-container');
+        container.className = 'story-page-container mood-' + page.mood;
+
+        // Update button text
+        const actionBtn = document.querySelector('.story-page-actions .btn-next-story');
+        if (state.storyCompleted && pageIndex === TOTAL_STORY_PAGES - 1) {
+            actionBtn.textContent = 'Story Complete! \u2192';
+            actionBtn.onclick = () => {
+                showStoryComplete();
+            };
+        } else {
+            actionBtn.innerHTML = 'Keep Practicing! &#8594;';
+            actionBtn.onclick = () => { App.closeStoryPage(); };
+        }
+
+        switchScreen('story-page');
+    }
+
+    function closeStoryPage() {
+        state.pendingStoryPage = null;
+        if (state.storyCompleted && state.storyPagesUnlocked >= TOTAL_STORY_PAGES) {
+            showStoryComplete();
+        } else {
+            switchScreen('practice');
+            nextQuestion();
+        }
+    }
+
+    function showStoryComplete() {
+        document.getElementById('complete-xp').textContent = state.xp;
+        document.getElementById('complete-level').textContent = state.level;
+        switchScreen('story-complete');
+    }
+
+    function showStorybook() {
+        renderStorybook();
+        state._storybookFrom = state.currentScreen;
+        switchScreen('storybook');
+    }
+
+    function closeStorybook() {
+        const from = state._storybookFrom || 'title';
+        switchScreen(from);
+        if (from === 'title') updateTitleStoryProgress();
+    }
+
+    function renderStorybook() {
+        const grid = document.getElementById('storybook-grid');
+        grid.innerHTML = '';
+
+        for (let i = 0; i < TOTAL_STORY_PAGES; i++) {
+            const page = Story.getPage(i);
+            const unlocked = i < state.storyPagesUnlocked;
+            const card = document.createElement('div');
+            card.className = 'storybook-card' + (unlocked ? ' unlocked' : ' locked');
+
+            if (unlocked) {
+                card.innerHTML = `
+                    <div class="storybook-page-number">Page ${i + 1}</div>
+                    <div class="storybook-art-mini">${page.art}</div>
+                    <h3 class="storybook-card-title">${page.title}</h3>
+                    <p class="storybook-card-preview">${page.text.substring(0, 80)}...</p>
+                `;
+                card.onclick = () => showStoryPageFromBook(i);
+            } else {
+                card.innerHTML = `
+                    <div class="storybook-page-number">Page ${i + 1}</div>
+                    <div class="storybook-locked-icon">&#128274;</div>
+                    <h3 class="storybook-card-title">???</h3>
+                    <p class="storybook-card-preview">Answer a question correctly to unlock!</p>
+                `;
+            }
+
+            grid.appendChild(card);
+        }
+    }
+
+    function showStoryPageFromBook(pageIndex) {
+        const page = Story.getPage(pageIndex);
+        if (!page) return;
+
+        document.getElementById('story-chapter').textContent = `Chapter ${page.chapter}`;
+        document.getElementById('story-page-count').textContent = `Page ${pageIndex + 1} / ${TOTAL_STORY_PAGES}`;
+        document.getElementById('story-page-title').textContent = page.title;
+        document.getElementById('story-art').innerHTML = page.art;
+        document.getElementById('story-text').textContent = page.text;
+
+        const container = document.querySelector('.story-page-container');
+        container.className = 'story-page-container mood-' + page.mood;
+
+        const actionBtn = document.querySelector('.story-page-actions .btn-next-story');
+        actionBtn.innerHTML = '&#8592; Back to Storybook';
+        actionBtn.onclick = () => { showStorybook(); };
+
+        switchScreen('story-page');
+    }
+
+    function showStoryToast(pageNum, title) {
+        const toast = document.getElementById('story-unlock-toast');
+        document.getElementById('toast-page-name').textContent = `Page ${pageNum}: ${title}`;
+        toast.classList.remove('hidden');
+        toast.classList.remove('toast-animate');
+        void toast.offsetWidth;
+        toast.classList.add('toast-animate');
+        setTimeout(() => toast.classList.add('hidden'), 3000);
     }
 
     // --- XP & Leveling ---
 
     function addXP(amount) {
         state.xp += amount;
-
         const newLevel = Math.floor(state.xp / XP_PER_LEVEL) + 1;
         if (newLevel > state.level) {
             state.level = newLevel;
@@ -416,19 +494,26 @@ const App = (() => {
     // --- UI Updates ---
 
     function updateStatsDisplay() {
-        // Topic screen stats
+        // Topic screen
         const xpTopics = document.getElementById('stats-xp-topics');
         const lvlTopics = document.getElementById('stats-level-topics');
+        const pagesTopics = document.getElementById('stats-pages-topics');
         if (xpTopics) xpTopics.textContent = state.xp;
         if (lvlTopics) lvlTopics.textContent = state.level;
+        if (pagesTopics) pagesTopics.textContent = state.storyPagesUnlocked;
 
-        // Practice screen stats
+        const bookCount = document.getElementById('storybook-count-topics');
+        if (bookCount) bookCount.textContent = `${state.storyPagesUnlocked} / ${TOTAL_STORY_PAGES} pages`;
+
+        // Practice screen
         const xpEl = document.getElementById('stats-xp');
         const lvlEl = document.getElementById('stats-level');
         const streakEl = document.getElementById('stats-streak');
+        const pagesEl = document.getElementById('stats-pages');
         if (xpEl) xpEl.textContent = state.xp;
         if (lvlEl) lvlEl.textContent = state.level;
         if (streakEl) streakEl.textContent = state.streak;
+        if (pagesEl) pagesEl.textContent = state.storyPagesUnlocked;
 
         // XP bar
         const xpInLevel = state.xp % XP_PER_LEVEL;
@@ -442,23 +527,36 @@ const App = (() => {
         document.getElementById('session-correct').textContent = state.sessionCorrect;
         document.getElementById('session-attempted').textContent = state.sessionAttempted;
         const accuracy = state.sessionAttempted > 0
-            ? Math.round((state.sessionCorrect / state.sessionAttempted) * 100)
-            : 0;
+            ? Math.round((state.sessionCorrect / state.sessionAttempted) * 100) : 0;
         document.getElementById('session-accuracy').textContent = `${accuracy}%`;
         document.getElementById('session-best-streak').textContent = state.bestStreak;
     }
 
     function updateTopicStats() {
-        for (const topic of ['fractions', 'multiplication', 'division']) {
+        for (const topic of ['multiply_fractions', 'divide_fractions']) {
             const stats = state.topicStats[topic];
             const fill = document.getElementById(`progress-${topic}`);
             const text = document.getElementById(`progress-text-${topic}`);
             if (fill) {
-                const pct = Math.min(stats.correct / 30 * 100, 100); // 30 questions = full bar
+                const pct = Math.min(stats.correct / 20 * 100, 100);
                 fill.style.width = `${pct}%`;
             }
-            if (text) text.textContent = `${stats.correct} completed`;
+            if (text) text.textContent = `${stats.correct} correct`;
         }
+    }
+
+    function updateStoryBar() {
+        const fill = document.getElementById('story-bar-fill');
+        const text = document.getElementById('story-bar-text');
+        if (fill) fill.style.width = `${(state.storyPagesUnlocked / TOTAL_STORY_PAGES) * 100}%`;
+        if (text) text.textContent = `${state.storyPagesUnlocked} / ${TOTAL_STORY_PAGES} pages`;
+    }
+
+    function updateTitleStoryProgress() {
+        const fill = document.getElementById('title-story-fill');
+        const text = document.getElementById('title-story-text');
+        if (fill) fill.style.width = `${(state.storyPagesUnlocked / TOTAL_STORY_PAGES) * 100}%`;
+        if (text) text.textContent = `Story: ${state.storyPagesUnlocked} / ${TOTAL_STORY_PAGES} pages unlocked`;
     }
 
     function showXPPopup(text) {
@@ -471,44 +569,38 @@ const App = (() => {
         setTimeout(() => popup.remove(), 1200);
     }
 
-    function capitalize(str) {
-        return str.charAt(0).toUpperCase() + str.slice(1);
-    }
-
-    // --- Particles Background ---
+    // --- Particles ---
 
     function initParticles() {
         const container = document.getElementById('particles');
         const colors = ['#ff6b9d', '#c084fc', '#60a5fa', '#67e8f9', '#fbbf24'];
-        const count = 25;
-
-        for (let i = 0; i < count; i++) {
-            const particle = document.createElement('div');
-            particle.className = 'particle';
+        for (let i = 0; i < 25; i++) {
+            const p = document.createElement('div');
+            p.className = 'particle';
             const size = Math.random() * 6 + 2;
-            particle.style.width = `${size}px`;
-            particle.style.height = `${size}px`;
-            particle.style.left = `${Math.random() * 100}%`;
-            particle.style.background = colors[Math.floor(Math.random() * colors.length)];
-            particle.style.animationDuration = `${Math.random() * 15 + 10}s`;
-            particle.style.animationDelay = `${Math.random() * 10}s`;
-            container.appendChild(particle);
+            p.style.width = `${size}px`;
+            p.style.height = `${size}px`;
+            p.style.left = `${Math.random() * 100}%`;
+            p.style.background = colors[Math.floor(Math.random() * colors.length)];
+            p.style.animationDuration = `${Math.random() * 15 + 10}s`;
+            p.style.animationDelay = `${Math.random() * 10}s`;
+            container.appendChild(p);
         }
     }
 
-    // --- Persistence (localStorage) ---
+    // --- Persistence ---
 
     function saveState() {
         const data = {
             xp: state.xp,
             level: state.level,
+            storyPagesUnlocked: state.storyPagesUnlocked,
+            storyCompleted: state.storyCompleted,
             topicStats: state.topicStats
         };
         try {
             localStorage.setItem('mathquest-save', JSON.stringify(data));
-        } catch (e) {
-            // localStorage may not be available
-        }
+        } catch (e) {}
     }
 
     function loadState() {
@@ -518,22 +610,12 @@ const App = (() => {
                 const data = JSON.parse(saved);
                 state.xp = data.xp || 0;
                 state.level = data.level || 1;
-                if (data.topicStats) {
-                    state.topicStats = data.topicStats;
-                }
+                state.storyPagesUnlocked = data.storyPagesUnlocked || 0;
+                state.storyCompleted = data.storyCompleted || false;
+                if (data.topicStats) state.topicStats = data.topicStats;
             }
-        } catch (e) {
-            // Ignore
-        }
+        } catch (e) {}
     }
-
-    // Save on changes
-    function saveAfterChange() {
-        saveState();
-    }
-
-    // Wrap addXP to also save
-    const originalAddXP = addXP;
 
     // --- Init ---
 
@@ -541,24 +623,35 @@ const App = (() => {
         loadState();
         initParticles();
         updateStatsDisplay();
+        updateTitleStoryProgress();
 
-        // Auto-save periodically
+        // Build story bar markers
+        const markers = document.getElementById('story-bar-markers');
+        if (markers) {
+            for (let i = 0; i < TOTAL_STORY_PAGES; i++) {
+                const m = document.createElement('div');
+                m.className = 'story-bar-marker';
+                m.style.left = `${((i + 1) / TOTAL_STORY_PAGES) * 100}%`;
+                markers.appendChild(m);
+            }
+        }
+
         setInterval(saveState, 5000);
-
-        // Save on page unload
         window.addEventListener('beforeunload', saveState);
     }
 
-    // Boot
     document.addEventListener('DOMContentLoaded', init);
 
-    // --- Public API ---
     return {
         showTitle,
         showTopicSelect,
         selectTopic,
         submitAnswer,
         nextQuestion,
-        closeLevelUp
+        afterAnswer,
+        closeLevelUp,
+        showStorybook,
+        closeStorybook,
+        closeStoryPage
     };
 })();

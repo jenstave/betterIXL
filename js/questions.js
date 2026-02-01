@@ -1,11 +1,9 @@
 /**
  * MathQuest - Question Generator
  *
- * Generates math questions aligned with Massachusetts 6th Grade Standards:
- *   - 6.NS.1: Interpret and compute quotients of fractions
- *   - 6.NS.2: Fluently divide multi-digit numbers
- *   - 6.NS.3: Fluently add, subtract, multiply, and divide multi-digit decimals
- *   - 6.NS.4: Find GCF, use distributive property
+ * Focused on Massachusetts 6th Grade Standard 6.NS.1:
+ *   - Multiplying fractions & mixed numbers
+ *   - Dividing fractions & mixed numbers
  */
 
 const Questions = (() => {
@@ -26,10 +24,6 @@ const Questions = (() => {
         return a;
     }
 
-    function lcm(a, b) {
-        return Math.abs(a * b) / gcd(a, b);
-    }
-
     function simplify(num, den) {
         if (den === 0) return { num: 0, den: 1 };
         const g = gcd(Math.abs(num), Math.abs(den));
@@ -44,11 +38,7 @@ const Questions = (() => {
         const whole = Math.floor(Math.abs(s.num) / s.den);
         const remainder = Math.abs(s.num) % s.den;
         const sign = s.num < 0 ? -1 : 1;
-        return {
-            whole: whole * sign,
-            num: remainder,
-            den: s.den
-        };
+        return { whole: whole * sign, num: remainder, den: s.den };
     }
 
     function fracToString(num, den) {
@@ -75,75 +65,9 @@ const Questions = (() => {
         return `<span class="frac-whole">${whole}</span>${fracHTML(num, den)}`;
     }
 
-    function roundTo(val, places) {
-        const factor = Math.pow(10, places);
-        return Math.round(val * factor) / factor;
-    }
+    // --- MULTIPLY FRACTIONS ---
 
-    // --- FRACTIONS (6.NS.1) ---
-
-    function generateFractionAdd() {
-        const den1 = pick([2, 3, 4, 5, 6, 8, 10, 12]);
-        const den2 = pick([2, 3, 4, 5, 6, 8, 10, 12]);
-        const num1 = randInt(1, den1 - 1);
-        const num2 = randInt(1, den2 - 1);
-
-        const commonDen = lcm(den1, den2);
-        const ansNum = num1 * (commonDen / den1) + num2 * (commonDen / den2);
-        const ansDen = commonDen;
-        const simplified = simplify(ansNum, ansDen);
-        const mixed = toMixed(ansNum, ansDen);
-
-        return {
-            type: 'fraction',
-            questionHTML: `${fracHTML(num1, den1)} <span class="operator">+</span> ${fracHTML(num2, den2)} <span class="equals">=</span> <span class="operator">?</span>`,
-            questionText: `${fracToString(num1, den1)} + ${fracToString(num2, den2)}`,
-            answerType: 'fraction',
-            answer: simplified,
-            answerMixed: mixed,
-            explanation: `Find a common denominator: ${commonDen}. Convert: ${num1 * (commonDen / den1)}/${commonDen} + ${num2 * (commonDen / den2)}/${commonDen} = ${ansNum}/${commonDen}. Simplified: ${fracToString(simplified.num, simplified.den)}${mixed.whole > 0 && mixed.num > 0 ? ' = ' + mixedToString(mixed.whole, mixed.num, mixed.den) : ''}.`,
-            standard: '6.NS.1'
-        };
-    }
-
-    function generateFractionSubtract() {
-        const den1 = pick([2, 3, 4, 5, 6, 8, 10, 12]);
-        const den2 = pick([2, 3, 4, 5, 6, 8, 10, 12]);
-        let num1 = randInt(1, den1 - 1);
-        let num2 = randInt(1, den2 - 1);
-
-        // Ensure positive result
-        const commonDen = lcm(den1, den2);
-        let resultNum = num1 * (commonDen / den1) - num2 * (commonDen / den2);
-        if (resultNum < 0) {
-            // Swap
-            [num1, num2] = [num2, num1];
-            resultNum = -resultNum;
-        }
-        if (resultNum === 0) {
-            num1 = num2 + 1 <= den1 ? num2 + 1 : num2;
-            resultNum = num1 * (commonDen / den1) - num2 * (commonDen / den2);
-            if (resultNum <= 0) return generateFractionAdd(); // fallback
-        }
-
-        const simplified = simplify(resultNum, commonDen);
-
-        const actualDen1 = resultNum < 0 ? den2 : den1;
-        const actualDen2 = resultNum < 0 ? den1 : den2;
-
-        return {
-            type: 'fraction',
-            questionHTML: `${fracHTML(num1, den1)} <span class="operator">&minus;</span> ${fracHTML(num2, den2)} <span class="equals">=</span> <span class="operator">?</span>`,
-            questionText: `${fracToString(num1, den1)} - ${fracToString(num2, den2)}`,
-            answerType: 'fraction',
-            answer: simplified,
-            answerMixed: toMixed(resultNum, commonDen),
-            explanation: `Common denominator: ${commonDen}. Convert: ${num1 * (commonDen / den1)}/${commonDen} - ${num2 * (commonDen / den2)}/${commonDen} = ${resultNum}/${commonDen}. Simplified: ${fracToString(simplified.num, simplified.den)}.`,
-            standard: '6.NS.1'
-        };
-    }
-
-    function generateFractionMultiply() {
+    function multiplySimple() {
         const den1 = pick([2, 3, 4, 5, 6, 7, 8]);
         const den2 = pick([2, 3, 4, 5, 6, 7, 8]);
         const num1 = randInt(1, den1 - 1);
@@ -155,227 +79,204 @@ const Questions = (() => {
         const mixed = toMixed(ansNum, ansDen);
 
         return {
-            type: 'fraction',
+            type: 'multiply_fractions',
             questionHTML: `${fracHTML(num1, den1)} <span class="operator">&times;</span> ${fracHTML(num2, den2)} <span class="equals">=</span> <span class="operator">?</span>`,
             questionText: `${fracToString(num1, den1)} x ${fracToString(num2, den2)}`,
             answerType: 'fraction',
             answer: simplified,
             answerMixed: mixed,
-            explanation: `Multiply numerators: ${num1} x ${num2} = ${ansNum}. Multiply denominators: ${den1} x ${den2} = ${ansDen}. Result: ${ansNum}/${ansDen}. Simplified: ${fracToString(simplified.num, simplified.den)}.`,
+            explanation: `Multiply the numerators: ${num1} x ${num2} = ${ansNum}. Multiply the denominators: ${den1} x ${den2} = ${ansDen}. That gives ${ansNum}/${ansDen}. Simplified: ${fracToString(simplified.num, simplified.den)}.`,
             standard: '6.NS.1'
         };
     }
 
-    function generateFractionDivide() {
+    function multiplyWholeByFraction() {
+        const whole = randInt(2, 10);
+        const den = pick([2, 3, 4, 5, 6, 8]);
+        const num = randInt(1, den - 1);
+
+        const ansNum = whole * num;
+        const ansDen = den;
+        const simplified = simplify(ansNum, ansDen);
+        const mixed = toMixed(ansNum, ansDen);
+
+        return {
+            type: 'multiply_fractions',
+            questionHTML: `<span class="frac-whole">${whole}</span> <span class="operator">&times;</span> ${fracHTML(num, den)} <span class="equals">=</span> <span class="operator">?</span>`,
+            questionText: `${whole} x ${fracToString(num, den)}`,
+            answerType: 'fraction',
+            answer: simplified,
+            answerMixed: mixed,
+            explanation: `Write ${whole} as ${whole}/1. Multiply numerators: ${whole} x ${num} = ${ansNum}. Denominators: 1 x ${den} = ${den}. Result: ${ansNum}/${ansDen}. Simplified: ${fracToString(simplified.num, simplified.den)}${mixed.whole !== 0 && mixed.num !== 0 ? ' = ' + mixedToString(mixed.whole, mixed.num, mixed.den) : ''}.`,
+            standard: '6.NS.1'
+        };
+    }
+
+    function multiplyMixed() {
+        const w1 = randInt(1, 4);
+        const d1 = pick([2, 3, 4, 5, 6]);
+        const n1 = randInt(1, d1 - 1);
+
+        const d2 = pick([2, 3, 4, 5, 6]);
+        const n2 = randInt(1, d2 - 1);
+
+        const imp1 = w1 * d1 + n1;
+        const ansNum = imp1 * n2;
+        const ansDen = d1 * d2;
+        const simplified = simplify(ansNum, ansDen);
+        const mixed = toMixed(ansNum, ansDen);
+
+        return {
+            type: 'multiply_fractions',
+            questionHTML: `${mixedFracHTML(w1, n1, d1)} <span class="operator">&times;</span> ${fracHTML(n2, d2)} <span class="equals">=</span> <span class="operator">?</span>`,
+            questionText: `${mixedToString(w1, n1, d1)} x ${fracToString(n2, d2)}`,
+            answerType: 'fraction',
+            answer: simplified,
+            answerMixed: mixed,
+            explanation: `Convert the mixed number: ${w1} ${n1}/${d1} = ${imp1}/${d1}. Multiply: ${imp1}/${d1} x ${n2}/${d2} = ${ansNum}/${ansDen}. Simplified: ${fracToString(simplified.num, simplified.den)}${mixed.whole !== 0 && mixed.num !== 0 ? ' = ' + mixedToString(mixed.whole, mixed.num, mixed.den) : ''}.`,
+            standard: '6.NS.1'
+        };
+    }
+
+    function multiplyTwoMixed() {
+        const w1 = randInt(1, 3);
+        const d1 = pick([2, 3, 4]);
+        const n1 = randInt(1, d1 - 1);
+
+        const w2 = randInt(1, 3);
+        const d2 = pick([2, 3, 4]);
+        const n2 = randInt(1, d2 - 1);
+
+        const imp1 = w1 * d1 + n1;
+        const imp2 = w2 * d2 + n2;
+        const ansNum = imp1 * imp2;
+        const ansDen = d1 * d2;
+        const simplified = simplify(ansNum, ansDen);
+        const mixed = toMixed(ansNum, ansDen);
+
+        return {
+            type: 'multiply_fractions',
+            questionHTML: `${mixedFracHTML(w1, n1, d1)} <span class="operator">&times;</span> ${mixedFracHTML(w2, n2, d2)} <span class="equals">=</span> <span class="operator">?</span>`,
+            questionText: `${mixedToString(w1, n1, d1)} x ${mixedToString(w2, n2, d2)}`,
+            answerType: 'fraction',
+            answer: simplified,
+            answerMixed: mixed,
+            explanation: `Convert to improper fractions: ${imp1}/${d1} x ${imp2}/${d2}. Multiply: ${ansNum}/${ansDen}. Simplified: ${fracToString(simplified.num, simplified.den)}${mixed.whole !== 0 && mixed.num !== 0 ? ' = ' + mixedToString(mixed.whole, mixed.num, mixed.den) : ''}.`,
+            standard: '6.NS.1'
+        };
+    }
+
+    // --- DIVIDE FRACTIONS ---
+
+    function divideSimple() {
         const den1 = pick([2, 3, 4, 5, 6, 8]);
         const den2 = pick([2, 3, 4, 5, 6, 8]);
         const num1 = randInt(1, den1 - 1);
         const num2 = randInt(1, den2 - 1);
 
-        // a/b / c/d = a/b * d/c
         const ansNum = num1 * den2;
         const ansDen = den1 * num2;
         const simplified = simplify(ansNum, ansDen);
         const mixed = toMixed(ansNum, ansDen);
 
         return {
-            type: 'fraction',
+            type: 'divide_fractions',
             questionHTML: `${fracHTML(num1, den1)} <span class="operator">&div;</span> ${fracHTML(num2, den2)} <span class="equals">=</span> <span class="operator">?</span>`,
             questionText: `${fracToString(num1, den1)} / ${fracToString(num2, den2)}`,
             answerType: 'fraction',
             answer: simplified,
             answerMixed: mixed,
-            explanation: `To divide fractions, multiply by the reciprocal: ${fracToString(num1, den1)} x ${fracToString(den2, num2)} = ${ansNum}/${ansDen}. Simplified: ${fracToString(simplified.num, simplified.den)}${mixed.whole > 0 && mixed.num > 0 ? ' = ' + mixedToString(mixed.whole, mixed.num, mixed.den) : ''}.`,
+            explanation: `To divide fractions, flip the second fraction and multiply! ${fracToString(num1, den1)} x ${fracToString(den2, num2)} = ${ansNum}/${ansDen}. Simplified: ${fracToString(simplified.num, simplified.den)}${mixed.whole !== 0 && mixed.num !== 0 ? ' = ' + mixedToString(mixed.whole, mixed.num, mixed.den) : ''}.`,
             standard: '6.NS.1'
         };
     }
 
-    function generateMixedNumberOp() {
-        const whole1 = randInt(1, 5);
-        const den1 = pick([2, 3, 4, 5, 6, 8]);
-        const frac1 = randInt(1, den1 - 1);
+    function divideWholeByFraction() {
+        const whole = randInt(2, 8);
+        const den = pick([2, 3, 4, 5, 6]);
+        const num = randInt(1, den - 1);
 
-        const whole2 = randInt(1, 3);
-        const den2 = pick([2, 3, 4, 5, 6, 8]);
-        const frac2 = randInt(1, den2 - 1);
-
-        const op = pick(['+', '-']);
-
-        // Convert to improper fractions
-        const impNum1 = whole1 * den1 + frac1;
-        const impNum2 = whole2 * den2 + frac2;
-
-        const commonDen = lcm(den1, den2);
-        let resultNum;
-        if (op === '+') {
-            resultNum = impNum1 * (commonDen / den1) + impNum2 * (commonDen / den2);
-        } else {
-            resultNum = impNum1 * (commonDen / den1) - impNum2 * (commonDen / den2);
-            if (resultNum < 0) {
-                return generateMixedNumberOp(); // retry to keep positive
-            }
-        }
-
-        const simplified = simplify(resultNum, commonDen);
-        const mixed = toMixed(resultNum, commonDen);
-        const opSymbol = op === '+' ? '+' : '&minus;';
-        const opText = op === '+' ? '+' : '-';
+        const ansNum = whole * den;
+        const ansDen = num;
+        const simplified = simplify(ansNum, ansDen);
+        const mixed = toMixed(ansNum, ansDen);
 
         return {
-            type: 'fraction',
-            questionHTML: `${mixedFracHTML(whole1, frac1, den1)} <span class="operator">${opSymbol}</span> ${mixedFracHTML(whole2, frac2, den2)} <span class="equals">=</span> <span class="operator">?</span>`,
-            questionText: `${mixedToString(whole1, frac1, den1)} ${opText} ${mixedToString(whole2, frac2, den2)}`,
-            answerType: 'mixed',
+            type: 'divide_fractions',
+            questionHTML: `<span class="frac-whole">${whole}</span> <span class="operator">&div;</span> ${fracHTML(num, den)} <span class="equals">=</span> <span class="operator">?</span>`,
+            questionText: `${whole} / ${fracToString(num, den)}`,
+            answerType: 'fraction',
             answer: simplified,
             answerMixed: mixed,
-            explanation: `Convert to improper fractions: ${impNum1}/${den1} ${opText} ${impNum2}/${den2}. Common denominator: ${commonDen}. Result: ${resultNum}/${commonDen}. Simplified: ${mixedToString(mixed.whole, mixed.num, mixed.den)}.`,
+            explanation: `Write ${whole} as ${whole}/1. Flip the second fraction and multiply: ${whole}/1 x ${den}/${num} = ${ansNum}/${ansDen}. Simplified: ${fracToString(simplified.num, simplified.den)}${mixed.whole !== 0 && mixed.num !== 0 ? ' = ' + mixedToString(mixed.whole, mixed.num, mixed.den) : ''}.`,
             standard: '6.NS.1'
         };
     }
 
-    // --- MULTIPLICATION (6.NS.2, 6.NS.3) ---
+    function divideFractionByWhole() {
+        const whole = randInt(2, 8);
+        const den = pick([2, 3, 4, 5, 6, 8]);
+        const num = randInt(1, den - 1);
 
-    function generateMultiDigitMultiply() {
-        const difficulty = pick(['easy', 'medium', 'hard']);
-        let a, b;
-
-        if (difficulty === 'easy') {
-            a = randInt(12, 99);
-            b = randInt(2, 9);
-        } else if (difficulty === 'medium') {
-            a = randInt(10, 99);
-            b = randInt(10, 99);
-        } else {
-            a = randInt(100, 999);
-            b = randInt(10, 99);
-        }
-
-        const answer = a * b;
+        const ansNum = num;
+        const ansDen = den * whole;
+        const simplified = simplify(ansNum, ansDen);
 
         return {
-            type: 'multiplication',
-            questionHTML: `<span class="question-math">${a.toLocaleString()} <span class="operator">&times;</span> ${b.toLocaleString()}</span> <span class="equals">=</span> <span class="operator">?</span>`,
-            questionText: `${a} x ${b}`,
-            answerType: 'number',
-            answer: answer,
-            explanation: `${a} x ${b} = ${answer.toLocaleString()}.${difficulty === 'medium' || difficulty === 'hard' ? ' Try breaking it down: ' + a + ' x ' + b + ' = ' + a + ' x ' + Math.floor(b / 10) * 10 + ' + ' + a + ' x ' + (b % 10) + ' = ' + (a * Math.floor(b / 10) * 10) + ' + ' + (a * (b % 10)) + ' = ' + answer : ''}`,
-            standard: '6.NS.2'
+            type: 'divide_fractions',
+            questionHTML: `${fracHTML(num, den)} <span class="operator">&div;</span> <span class="frac-whole">${whole}</span> <span class="equals">=</span> <span class="operator">?</span>`,
+            questionText: `${fracToString(num, den)} / ${whole}`,
+            answerType: 'fraction',
+            answer: simplified,
+            answerMixed: toMixed(ansNum, ansDen),
+            explanation: `Write ${whole} as ${whole}/1. Flip it to get 1/${whole}. Multiply: ${num}/${den} x 1/${whole} = ${ansNum}/${ansDen}. Simplified: ${fracToString(simplified.num, simplified.den)}.`,
+            standard: '6.NS.1'
         };
     }
 
-    function generateDecimalMultiply() {
-        const decPlaces1 = pick([1, 2]);
-        const decPlaces2 = pick([1, 2]);
-        const factor = Math.pow(10, decPlaces1);
-        const factor2 = Math.pow(10, decPlaces2);
+    function divideMixed() {
+        const w1 = randInt(1, 4);
+        const d1 = pick([2, 3, 4, 5, 6]);
+        const n1 = randInt(1, d1 - 1);
 
-        let a = randInt(1, 99) / factor;
-        let b = randInt(2, 99) / factor2;
+        const d2 = pick([2, 3, 4, 5, 6]);
+        const n2 = randInt(1, d2 - 1);
 
-        // Keep numbers reasonable
-        if (a < 0.1) a = 0.1;
-        if (b < 0.1) b = 0.1;
-
-        const totalDecPlaces = decPlaces1 + decPlaces2;
-        const answer = roundTo(a * b, totalDecPlaces);
-
-        return {
-            type: 'multiplication',
-            questionHTML: `<span class="question-math">${a} <span class="operator">&times;</span> ${b}</span> <span class="equals">=</span> <span class="operator">?</span>`,
-            questionText: `${a} x ${b}`,
-            answerType: 'decimal',
-            answer: answer,
-            explanation: `Multiply ignoring decimals: ${Math.round(a * factor)} x ${Math.round(b * factor2)} = ${Math.round(a * factor) * Math.round(b * factor2)}. Count decimal places: ${decPlaces1} + ${decPlaces2} = ${totalDecPlaces}. Move decimal point ${totalDecPlaces} places left: ${answer}.`,
-            standard: '6.NS.3'
-        };
-    }
-
-    // --- DIVISION (6.NS.2, 6.NS.3) ---
-
-    function generateMultiDigitDivide() {
-        const difficulty = pick(['easy', 'medium', 'hard']);
-        let divisor, quotient, dividend;
-
-        if (difficulty === 'easy') {
-            divisor = randInt(2, 9);
-            quotient = randInt(10, 99);
-        } else if (difficulty === 'medium') {
-            divisor = randInt(2, 12);
-            quotient = randInt(10, 150);
-        } else {
-            divisor = randInt(10, 30);
-            quotient = randInt(10, 99);
-        }
-
-        dividend = divisor * quotient;
+        const imp1 = w1 * d1 + n1;
+        // a/b / c/d = a*d / b*c
+        const ansNum = imp1 * d2;
+        const ansDen = d1 * n2;
+        const simplified = simplify(ansNum, ansDen);
+        const mixed = toMixed(ansNum, ansDen);
 
         return {
-            type: 'division',
-            questionHTML: `<span class="question-math">${dividend.toLocaleString()} <span class="operator">&div;</span> ${divisor}</span> <span class="equals">=</span> <span class="operator">?</span>`,
-            questionText: `${dividend} / ${divisor}`,
-            answerType: 'number',
-            answer: quotient,
-            explanation: `${dividend} / ${divisor} = ${quotient}. You can verify: ${divisor} x ${quotient} = ${dividend}.`,
-            standard: '6.NS.2'
-        };
-    }
-
-    function generateDivisionWithRemainder() {
-        const divisor = randInt(3, 15);
-        const quotient = randInt(5, 50);
-        const remainder = randInt(1, divisor - 1);
-        const dividend = divisor * quotient + remainder;
-
-        return {
-            type: 'division',
-            questionHTML: `<span class="question-math">${dividend} <span class="operator">&div;</span> ${divisor}</span><br><span style="font-size: 1rem; color: var(--text-muted);">Give the quotient and remainder</span>`,
-            questionText: `${dividend} / ${divisor} (with remainder)`,
-            answerType: 'quotient_remainder',
-            answer: { quotient, remainder },
-            explanation: `${dividend} / ${divisor} = ${quotient} remainder ${remainder}. Check: ${divisor} x ${quotient} + ${remainder} = ${divisor * quotient} + ${remainder} = ${dividend}.`,
-            standard: '6.NS.2'
-        };
-    }
-
-    function generateDecimalDivide() {
-        const decPlaces = pick([1, 2]);
-        const divisor = randInt(2, 9);
-        const factor = Math.pow(10, decPlaces);
-        const quotientInt = randInt(1, 50);
-        const answer = quotientInt / factor;
-        const dividend = roundTo(answer * divisor, decPlaces);
-
-        return {
-            type: 'division',
-            questionHTML: `<span class="question-math">${dividend} <span class="operator">&div;</span> ${divisor}</span> <span class="equals">=</span> <span class="operator">?</span>`,
-            questionText: `${dividend} / ${divisor}`,
-            answerType: 'decimal',
-            answer: answer,
-            explanation: `${dividend} / ${divisor} = ${answer}. Verify: ${divisor} x ${answer} = ${dividend}.`,
-            standard: '6.NS.3'
+            type: 'divide_fractions',
+            questionHTML: `${mixedFracHTML(w1, n1, d1)} <span class="operator">&div;</span> ${fracHTML(n2, d2)} <span class="equals">=</span> <span class="operator">?</span>`,
+            questionText: `${mixedToString(w1, n1, d1)} / ${fracToString(n2, d2)}`,
+            answerType: 'fraction',
+            answer: simplified,
+            answerMixed: mixed,
+            explanation: `Convert the mixed number: ${w1} ${n1}/${d1} = ${imp1}/${d1}. Flip and multiply: ${imp1}/${d1} x ${d2}/${n2} = ${ansNum}/${ansDen}. Simplified: ${fracToString(simplified.num, simplified.den)}${mixed.whole !== 0 && mixed.num !== 0 ? ' = ' + mixedToString(mixed.whole, mixed.num, mixed.den) : ''}.`,
+            standard: '6.NS.1'
         };
     }
 
     // --- Public API ---
 
     const topicGenerators = {
-        fractions: [
-            generateFractionAdd,
-            generateFractionSubtract,
-            generateFractionMultiply,
-            generateFractionDivide,
-            generateMixedNumberOp
+        multiply_fractions: [
+            multiplySimple,
+            multiplySimple,
+            multiplyWholeByFraction,
+            multiplyMixed,
+            multiplyTwoMixed
         ],
-        multiplication: [
-            generateMultiDigitMultiply,
-            generateMultiDigitMultiply,
-            generateDecimalMultiply
-        ],
-        division: [
-            generateMultiDigitDivide,
-            generateMultiDigitDivide,
-            generateDivisionWithRemainder,
-            generateDecimalDivide
+        divide_fractions: [
+            divideSimple,
+            divideSimple,
+            divideWholeByFraction,
+            divideFractionByWhole,
+            divideMixed
         ]
     };
 
@@ -390,82 +291,40 @@ const Questions = (() => {
 
     function checkAnswer(question, userAnswer) {
         const type = question.answerType;
-
-        if (type === 'number' || type === 'decimal') {
-            const expected = question.answer;
-            const given = parseFloat(userAnswer);
-            if (isNaN(given)) return false;
-            return Math.abs(given - expected) < 0.001;
-        }
+        const s = question.answer;
 
         if (type === 'fraction') {
-            // Accept either simplified fraction or mixed number
-            const s = question.answer;
-            const userNum = parseInt(userAnswer.num);
-            const userDen = parseInt(userAnswer.den);
-            if (isNaN(userNum) || isNaN(userDen) || userDen === 0) return false;
+            // Accept improper fraction
+            let userNum = parseInt(userAnswer.num);
+            let userDen = parseInt(userAnswer.den);
+            const userWhole = parseInt(userAnswer.whole);
 
-            const userSimp = simplify(userNum, userDen);
-            return userSimp.num === s.num && userSimp.den === s.den;
-        }
+            if (isNaN(userDen) || userDen === 0) return false;
 
-        if (type === 'mixed') {
-            const m = question.answerMixed;
-            const s = question.answer;
-
-            // Allow answer as improper fraction
-            if (userAnswer.whole === undefined || userAnswer.whole === '' || userAnswer.whole === null) {
-                const userNum = parseInt(userAnswer.num);
-                const userDen = parseInt(userAnswer.den);
-                if (isNaN(userNum) || isNaN(userDen) || userDen === 0) return false;
-                const userSimp = simplify(userNum, userDen);
-                return userSimp.num === s.num && userSimp.den === s.den;
+            // If they entered a whole part, convert to improper
+            if (!isNaN(userWhole) && userWhole !== 0) {
+                if (isNaN(userNum)) userNum = 0;
+                userNum = Math.abs(userWhole) * userDen + Math.abs(userNum);
+                if (userWhole < 0) userNum = -userNum;
             }
 
-            // Mixed number answer
-            const whole = parseInt(userAnswer.whole) || 0;
-            const num = parseInt(userAnswer.num) || 0;
-            const den = parseInt(userAnswer.den) || 1;
-
-            if (den === 0) return false;
-
-            // Convert user mixed to improper and simplify
-            const userImpNum = whole * den + num;
-            const userSimp = simplify(userImpNum, den);
+            if (isNaN(userNum)) return false;
+            const userSimp = simplify(userNum, userDen);
             return userSimp.num === s.num && userSimp.den === s.den;
-        }
-
-        if (type === 'quotient_remainder') {
-            const expected = question.answer;
-            const q = parseInt(userAnswer.quotient);
-            const r = parseInt(userAnswer.remainder);
-            if (isNaN(q) || isNaN(r)) return false;
-            return q === expected.quotient && r === expected.remainder;
         }
 
         return false;
     }
 
     function getAnswerDisplay(question) {
-        const type = question.answerType;
-        if (type === 'number') return question.answer.toLocaleString();
-        if (type === 'decimal') return question.answer.toString();
-        if (type === 'fraction') return fracToString(question.answer.num, question.answer.den);
-        if (type === 'mixed') {
-            const m = question.answerMixed;
-            return mixedToString(m.whole, m.num, m.den);
+        const s = question.answer;
+        const m = question.answerMixed;
+        if (s.den === 1) return `${s.num}`;
+        if (m && m.whole !== 0 && m.num !== 0) {
+            return `${mixedToString(m.whole, m.num, m.den)}  (or ${fracToString(s.num, s.den)})`;
         }
-        if (type === 'quotient_remainder') {
-            return `${question.answer.quotient} R ${question.answer.remainder}`;
-        }
-        return '';
+        return fracToString(s.num, s.den);
     }
 
-    return {
-        generate,
-        checkAnswer,
-        getAnswerDisplay,
-        simplify,
-        fracToString
-    };
+    return { generate, checkAnswer, getAnswerDisplay, simplify, fracToString };
 })();
