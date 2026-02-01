@@ -206,8 +206,10 @@ const App = (() => {
         const q = state.currentQuestion;
         const userAnswer = getUserAnswer();
 
-        // Need at least numerator and denominator
-        if (userAnswer.num === '' || userAnswer.den === '') return;
+        // Need at least whole OR (numerator AND denominator)
+        const hasWhole = userAnswer.whole !== '' && userAnswer.whole !== undefined;
+        const hasFraction = userAnswer.num !== '' && userAnswer.den !== '';
+        if (!hasWhole && !hasFraction) return;
 
         state.answered = true;
         state.sessionAttempted++;

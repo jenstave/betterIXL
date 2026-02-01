@@ -294,21 +294,29 @@ const Questions = (() => {
         const s = question.answer;
 
         if (type === 'fraction') {
-            // Accept improper fraction
             let userNum = parseInt(userAnswer.num);
             let userDen = parseInt(userAnswer.den);
             const userWhole = parseInt(userAnswer.whole);
 
-            if (isNaN(userDen) || userDen === 0) return false;
+            // If only whole number entered (no fraction part)
+            if ((isNaN(userNum) || userAnswer.num === '') &&
+                (isNaN(userDen) || userAnswer.den === '')) {
+                if (isNaN(userWhole)) return false;
+                // Whole number answer: treat as userWhole/1
+                const userSimp = simplify(userWhole, 1);
+                return userSimp.num === s.num && userSimp.den === s.den;
+            }
 
-            // If they entered a whole part, convert to improper
+            // Has fraction part - denominator is required and can't be 0
+            if (isNaN(userDen) || userDen === 0) return false;
+            if (isNaN(userNum)) userNum = 0;
+
+            // If they also entered a whole part, convert to improper
             if (!isNaN(userWhole) && userWhole !== 0) {
-                if (isNaN(userNum)) userNum = 0;
                 userNum = Math.abs(userWhole) * userDen + Math.abs(userNum);
                 if (userWhole < 0) userNum = -userNum;
             }
 
-            if (isNaN(userNum)) return false;
             const userSimp = simplify(userNum, userDen);
             return userSimp.num === s.num && userSimp.den === s.den;
         }
