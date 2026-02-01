@@ -211,9 +211,11 @@ const App = (() => {
         const hasFraction = userAnswer.num !== '' && userAnswer.den !== '';
         if (!hasWhole && !hasFraction) return;
 
-        state.answered = true;
         state.sessionAttempted++;
-        state.topicStats[state.currentTopic].attempted++;
+        if (state.topicStats[state.currentTopic]) {
+            state.topicStats[state.currentTopic].attempted++;
+        }
+        state.answered = true;
 
         const isCorrect = Questions.checkAnswer(q, userAnswer);
         state.lastAnswerCorrect = isCorrect;
@@ -243,7 +245,9 @@ const App = (() => {
     function handleCorrect(card, feedback, explanation, question) {
         state.sessionCorrect++;
         state.streak++;
-        state.topicStats[state.currentTopic].correct++;
+        if (state.topicStats[state.currentTopic]) {
+            state.topicStats[state.currentTopic].correct++;
+        }
         if (state.streak > state.bestStreak) state.bestStreak = state.streak;
 
         // XP
@@ -614,7 +618,12 @@ const App = (() => {
                 state.level = data.level || 1;
                 state.storyPagesUnlocked = data.storyPagesUnlocked || 0;
                 state.storyCompleted = data.storyCompleted || false;
-                if (data.topicStats) state.topicStats = data.topicStats;
+                // Only load topicStats if it has the correct keys
+                if (data.topicStats &&
+                    data.topicStats.multiply_fractions &&
+                    data.topicStats.divide_fractions) {
+                    state.topicStats = data.topicStats;
+                }
             }
         } catch (e) {}
     }
