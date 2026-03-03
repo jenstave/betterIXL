@@ -2,6 +2,7 @@
  * MathQuest - Main Application
  *
  * Handles UI, scoring (no penalty!), story progression, and interactions.
+ * Supports multiple stories (one per topic) and a story toggle.
  */
 
 const App = (() => {
@@ -20,9 +21,15 @@ const App = (() => {
         sessionAttempted: 0,
         answered: false,
         lastAnswerCorrect: false,
-        storyPagesUnlocked: 0,
-        storyCompleted: false,
-        pendingStoryPage: null, // page index to show after answer
+        storiesEnabled: true,
+        pendingStoryPage: null,
+        pendingStoryId: null,
+        // Per-topic story progress
+        storyProgress: {
+            fraction_blade: { pagesUnlocked: 0, completed: false },
+            shadow_mirror: { pagesUnlocked: 0, completed: false },
+            crystal_garden: { pagesUnlocked: 0, completed: false }
+        },
         topicStats: {
             multiply_fractions: { correct: 0, attempted: 0 },
             divide_fractions: { correct: 0, attempted: 0 }
@@ -34,7 +41,6 @@ const App = (() => {
     const XP_STREAK_BONUS = 5;
     const STREAK_MILESTONE = 3;
     const XP_PER_LEVEL = 100;
-    const TOTAL_STORY_PAGES = Story.getTotalPages();
 
     // --- Mascot Messages ---
     const messages = {
@@ -55,8 +61,18 @@ const App = (() => {
             "You're a fraction wizard!",
             "Exactly right!"
         ],
+        correctNoStory: [
+            "Amazing! You nailed it!",
+            "That's right! Keep it up!",
+            "Perfect! You're on fire!",
+            "Sugoi! (That means awesome!)",
+            "Brilliant answer!",
+            "You're a fraction wizard!",
+            "Exactly right!",
+            "+XP! You're getting stronger!"
+        ],
         streak: [
-            "You're on a streak! The story keeps going!",
+            "You're on a streak! Keep going!",
             "Unstoppable! What a combo!",
             "Incredible streak! Don't stop!",
             "You're blazing through these!",
@@ -90,6 +106,23 @@ const App = (() => {
         return arr[Math.floor(Math.random() * arr.length)];
     }
 
+    // --- Helpers ---
+
+    function getCurrentStoryId() {
+        return Stories.getStoryIdForTopic(state.currentTopic);
+    }
+
+    function getCurrentStoryProgress() {
+        const storyId = getCurrentStoryId();
+        if (!storyId || !state.storyProgress[storyId]) return null;
+        return state.storyProgress[storyId];
+    }
+
+    function getTotalPagesForCurrentTopic() {
+        const storyId = getCurrentStoryId();
+        return storyId ? Stories.getTotalPages(storyId) : 0;
+    }
+
     // --- Screen Management ---
 
     function switchScreen(screenId) {
@@ -104,13 +137,14 @@ const App = (() => {
 
     function showTitle() {
         switchScreen('title');
-        updateTitleStoryProgress();
+        updateTitleDisplay();
     }
 
     function showTopicSelect() {
         switchScreen('topics');
         updateTopicStats();
         updateStatsDisplay();
+        updateToggleButton();
     }
 
     function selectTopic(topic) {
@@ -128,6 +162,59 @@ const App = (() => {
         nextQuestion();
     }
 
+    // --- Story Toggle ---
+
+    function toggleStories() {
+        state.storiesEnabled = !state.storiesEnabled;
+        updateToggleButton();
+        updateStoryBarVisibility();
+        saveState();
+    }
+
+    function updateToggleButton() {
+        const btn = document.getElementById('btn-toggle-stories');
+        if (!btn) return;
+        if (state.storiesEnabled) {
+            btn.innerHTML = '&#128214; Stories: ON';
+            btn.classList.add('toggle-on');
+            btn.classList.remove('toggle-off');
+        } else {
+            btn.innerHTML = '&#128214; Stories: OFF';
+            btn.classList.remove('toggle-on');
+            btn.classList.add('toggle-off');
+        }
+
+        // Update subtitle text
+        const subtitle = document.querySelector('#screen-topics .screen-subtitle');
+        if (subtitle) {
+            subtitle.textContent = state.storiesEnabled
+                ? 'Each correct answer unlocks the next page of the story!'
+                : 'Practice mode -- earn XP without story pages!';
+        }
+
+        // Show/hide storybook access
+        const bookAccess = document.querySelector('.storybook-access');
+        if (bookAccess) {
+            bookAccess.style.display = state.storiesEnabled ? '' : 'none';
+        }
+
+        // Show/hide story progress on topic cards
+        document.querySelectorAll('.topic-story-info').forEach(el => {
+            el.style.display = state.storiesEnabled ? '' : 'none';
+        });
+    }
+
+    function updateStoryBarVisibility() {
+        const bar = document.querySelector('.story-bar-container');
+        if (bar) {
+            bar.style.display = state.storiesEnabled ? '' : 'none';
+        }
+        const pagesStatPractice = document.getElementById('pages-stat-practice');
+        if (pagesStatPractice) {
+            pagesStatPractice.style.display = state.storiesEnabled ? '' : 'none';
+        }
+    }
+
     // --- Question Flow ---
 
     function nextQuestion() {
@@ -135,6 +222,7 @@ const App = (() => {
         state.answered = false;
         state.lastAnswerCorrect = false;
         state.pendingStoryPage = null;
+        state.pendingStoryId = null;
         state.currentQuestion = Questions.generate(state.currentTopic);
 
         const q = state.currentQuestion;
@@ -150,7 +238,6 @@ const App = (() => {
         document.getElementById('btn-submit').disabled = false;
         document.getElementById('btn-next').classList.add('hidden');
 
-        // Update next button text based on whether a story page is pending
         document.getElementById('btn-next').textContent = 'Next Question \u2192';
 
         buildAnswerInput(q);
@@ -168,7 +255,6 @@ const App = (() => {
 
     function buildAnswerInput(question) {
         const area = document.getElementById('answer-input-area');
-        // All questions are fraction type now - provide whole + numerator/denominator
         area.innerHTML = `
             <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:center;">
                 <div style="text-align:center;">
@@ -260,25 +346,36 @@ const App = (() => {
         }
         addXP(xpGain);
 
-        // Unlock story page
-        if (state.storyPagesUnlocked < TOTAL_STORY_PAGES) {
-            state.pendingStoryPage = state.storyPagesUnlocked;
-            state.storyPagesUnlocked++;
+        // Story unlock (only if stories enabled)
+        const storyId = getCurrentStoryId();
+        const progress = getCurrentStoryProgress();
+        const totalPages = getTotalPagesForCurrentTopic();
+
+        if (state.storiesEnabled && storyId && progress && progress.pagesUnlocked < totalPages) {
+            state.pendingStoryPage = progress.pagesUnlocked;
+            state.pendingStoryId = storyId;
+            progress.pagesUnlocked++;
             updateStoryBar();
 
             // Show toast
-            const page = Story.getPage(state.pendingStoryPage);
-            showStoryToast(state.pendingStoryPage + 1, page.title);
+            const page = Stories.getPage(storyId, state.pendingStoryPage);
+            if (page) {
+                const story = Stories.getStory(storyId);
+                showStoryToast(state.pendingStoryPage + 1, page.title, story.title);
+            }
 
             // Update button
             const nextBtn = document.getElementById('btn-next');
             nextBtn.innerHTML = '&#128214; Read Next Story Page! \u2192';
+
+            // Check story complete
+            if (progress.pagesUnlocked >= totalPages && !progress.completed) {
+                progress.completed = true;
+            }
         }
 
-        // Check story complete
-        if (state.storyPagesUnlocked >= TOTAL_STORY_PAGES && !state.storyCompleted) {
-            state.storyCompleted = true;
-        }
+        // Also unlock bonus story pages if both main stories are done
+        checkBonusStoryUnlock();
 
         // UI
         card.classList.remove('pop', 'shake');
@@ -298,7 +395,7 @@ const App = (() => {
             setMascotMessage(pickMsg('storyUnlock'));
             setMascotMood('excited');
         } else {
-            setMascotMessage(pickMsg('correct'));
+            setMascotMessage(pickMsg(state.storiesEnabled ? 'correct' : 'correctNoStory'));
             setMascotMood('happy');
         }
 
@@ -310,6 +407,22 @@ const App = (() => {
                 streakEl.classList.remove('streak-fire');
                 void streakEl.offsetWidth;
                 streakEl.classList.add('streak-fire');
+            }
+        }
+    }
+
+    function checkBonusStoryUnlock() {
+        // Bonus story "crystal_garden" unlocks pages when BOTH main stories are complete
+        const fb = state.storyProgress.fraction_blade;
+        const sm = state.storyProgress.shadow_mirror;
+        if (!fb.completed || !sm.completed) return;
+
+        const bonus = state.storyProgress.crystal_garden;
+        const totalBonus = Stories.getTotalPages('crystal_garden');
+        if (bonus.pagesUnlocked < totalBonus) {
+            bonus.pagesUnlocked++;
+            if (bonus.pagesUnlocked >= totalBonus) {
+                bonus.completed = true;
             }
         }
     }
@@ -335,8 +448,8 @@ const App = (() => {
     // --- After answering, decide what to show ---
 
     function afterAnswer() {
-        if (state.pendingStoryPage !== null) {
-            showStoryPage(state.pendingStoryPage);
+        if (state.pendingStoryPage !== null && state.pendingStoryId) {
+            showStoryPage(state.pendingStoryId, state.pendingStoryPage);
         } else {
             nextQuestion();
         }
@@ -344,27 +457,29 @@ const App = (() => {
 
     // --- Story System ---
 
-    function showStoryPage(pageIndex) {
-        const page = Story.getPage(pageIndex);
-        if (!page) { nextQuestion(); return; }
+    function showStoryPage(storyId, pageIndex) {
+        const page = Stories.getPage(storyId, pageIndex);
+        const story = Stories.getStory(storyId);
+        if (!page || !story) { nextQuestion(); return; }
+
+        const totalPages = story.totalPages;
 
         document.getElementById('story-chapter').textContent = `Chapter ${page.chapter}`;
-        document.getElementById('story-page-count').textContent = `Page ${pageIndex + 1} / ${TOTAL_STORY_PAGES}`;
+        document.getElementById('story-page-count').textContent = `Page ${pageIndex + 1} / ${totalPages}`;
         document.getElementById('story-page-title').textContent = page.title;
         document.getElementById('story-art').innerHTML = page.art;
         document.getElementById('story-text').textContent = page.text;
+        document.getElementById('story-name-display').textContent = story.title;
 
-        // Set mood-based styling
         const container = document.querySelector('.story-page-container');
         container.className = 'story-page-container mood-' + page.mood;
 
-        // Update button text
         const actionBtn = document.querySelector('.story-page-actions .btn-next-story');
-        if (state.storyCompleted && pageIndex === TOTAL_STORY_PAGES - 1) {
+        const progress = state.storyProgress[storyId];
+
+        if (progress && progress.completed && pageIndex === totalPages - 1) {
             actionBtn.textContent = 'Story Complete! \u2192';
-            actionBtn.onclick = () => {
-                showStoryComplete();
-            };
+            actionBtn.onclick = () => { showStoryComplete(storyId); };
         } else {
             actionBtn.innerHTML = 'Keep Practicing! &#8594;';
             actionBtn.onclick = () => { App.closeStoryPage(); };
@@ -374,18 +489,41 @@ const App = (() => {
     }
 
     function closeStoryPage() {
+        const storyId = state.pendingStoryId;
+        const progress = storyId ? state.storyProgress[storyId] : null;
         state.pendingStoryPage = null;
-        if (state.storyCompleted && state.storyPagesUnlocked >= TOTAL_STORY_PAGES) {
-            showStoryComplete();
+        state.pendingStoryId = null;
+
+        if (progress && progress.completed) {
+            showStoryComplete(storyId);
         } else {
             switchScreen('practice');
             nextQuestion();
         }
     }
 
-    function showStoryComplete() {
+    function showStoryComplete(storyId) {
+        const story = Stories.getStory(storyId);
+        if (!story) { showTopicSelect(); return; }
+
         document.getElementById('complete-xp').textContent = state.xp;
         document.getElementById('complete-level').textContent = state.level;
+        document.getElementById('complete-story-name').textContent = story.title;
+        document.getElementById('complete-pages-display').textContent =
+            `${story.totalPages}/${story.totalPages}`;
+
+        // Check if bonus unlocked
+        const fb = state.storyProgress.fraction_blade;
+        const sm = state.storyProgress.shadow_mirror;
+        const bonusNotice = document.getElementById('bonus-notice');
+        if (bonusNotice) {
+            if (fb.completed && sm.completed) {
+                bonusNotice.classList.remove('hidden');
+            } else {
+                bonusNotice.classList.add('hidden');
+            }
+        }
+
         switchScreen('story-complete');
     }
 
@@ -398,16 +536,48 @@ const App = (() => {
     function closeStorybook() {
         const from = state._storybookFrom || 'title';
         switchScreen(from);
-        if (from === 'title') updateTitleStoryProgress();
+        if (from === 'title') updateTitleDisplay();
     }
 
     function renderStorybook() {
-        const grid = document.getElementById('storybook-grid');
-        grid.innerHTML = '';
+        const container = document.getElementById('storybook-stories');
+        container.innerHTML = '';
 
-        for (let i = 0; i < TOTAL_STORY_PAGES; i++) {
-            const page = Story.getPage(i);
-            const unlocked = i < state.storyPagesUnlocked;
+        // Show main stories
+        const mainStories = Stories.getMainStories();
+        mainStories.forEach(story => {
+            container.appendChild(renderStorySection(story));
+        });
+
+        // Show bonus stories if unlocked
+        const bonusStories = Stories.getBonusStories();
+        bonusStories.forEach(story => {
+            const progress = state.storyProgress[story.id];
+            if (progress && progress.pagesUnlocked > 0) {
+                container.appendChild(renderStorySection(story));
+            }
+        });
+    }
+
+    function renderStorySection(story) {
+        const progress = state.storyProgress[story.id] || { pagesUnlocked: 0 };
+        const section = document.createElement('div');
+        section.className = 'storybook-section';
+
+        const header = document.createElement('div');
+        header.className = 'storybook-section-header';
+        header.innerHTML = `
+            <h3 class="storybook-section-title">${story.title}</h3>
+            <span class="storybook-section-progress">${progress.pagesUnlocked} / ${story.totalPages} pages</span>
+        `;
+        section.appendChild(header);
+
+        const grid = document.createElement('div');
+        grid.className = 'storybook-grid';
+
+        for (let i = 0; i < story.totalPages; i++) {
+            const page = story.pages[i];
+            const unlocked = i < progress.pagesUnlocked;
             const card = document.createElement('div');
             card.className = 'storybook-card' + (unlocked ? ' unlocked' : ' locked');
 
@@ -418,7 +588,7 @@ const App = (() => {
                     <h3 class="storybook-card-title">${page.title}</h3>
                     <p class="storybook-card-preview">${page.text.substring(0, 80)}...</p>
                 `;
-                card.onclick = () => showStoryPageFromBook(i);
+                card.onclick = () => showStoryPageFromBook(story.id, i);
             } else {
                 card.innerHTML = `
                     <div class="storybook-page-number">Page ${i + 1}</div>
@@ -430,17 +600,22 @@ const App = (() => {
 
             grid.appendChild(card);
         }
+
+        section.appendChild(grid);
+        return section;
     }
 
-    function showStoryPageFromBook(pageIndex) {
-        const page = Story.getPage(pageIndex);
-        if (!page) return;
+    function showStoryPageFromBook(storyId, pageIndex) {
+        const page = Stories.getPage(storyId, pageIndex);
+        const story = Stories.getStory(storyId);
+        if (!page || !story) return;
 
         document.getElementById('story-chapter').textContent = `Chapter ${page.chapter}`;
-        document.getElementById('story-page-count').textContent = `Page ${pageIndex + 1} / ${TOTAL_STORY_PAGES}`;
+        document.getElementById('story-page-count').textContent = `Page ${pageIndex + 1} / ${story.totalPages}`;
         document.getElementById('story-page-title').textContent = page.title;
         document.getElementById('story-art').innerHTML = page.art;
         document.getElementById('story-text').textContent = page.text;
+        document.getElementById('story-name-display').textContent = story.title;
 
         const container = document.querySelector('.story-page-container');
         container.className = 'story-page-container mood-' + page.mood;
@@ -452,9 +627,9 @@ const App = (() => {
         switchScreen('story-page');
     }
 
-    function showStoryToast(pageNum, title) {
+    function showStoryToast(pageNum, title, storyTitle) {
         const toast = document.getElementById('story-unlock-toast');
-        document.getElementById('toast-page-name').textContent = `Page ${pageNum}: ${title}`;
+        document.getElementById('toast-page-name').textContent = `${storyTitle} - Page ${pageNum}: ${title}`;
         toast.classList.remove('hidden');
         toast.classList.remove('toast-animate');
         void toast.offsetWidth;
@@ -503,23 +678,28 @@ const App = (() => {
         // Topic screen
         const xpTopics = document.getElementById('stats-xp-topics');
         const lvlTopics = document.getElementById('stats-level-topics');
-        const pagesTopics = document.getElementById('stats-pages-topics');
         if (xpTopics) xpTopics.textContent = state.xp;
         if (lvlTopics) lvlTopics.textContent = state.level;
-        if (pagesTopics) pagesTopics.textContent = state.storyPagesUnlocked;
-
-        const bookCount = document.getElementById('storybook-count-topics');
-        if (bookCount) bookCount.textContent = `${state.storyPagesUnlocked} / ${TOTAL_STORY_PAGES} pages`;
 
         // Practice screen
         const xpEl = document.getElementById('stats-xp');
         const lvlEl = document.getElementById('stats-level');
         const streakEl = document.getElementById('stats-streak');
-        const pagesEl = document.getElementById('stats-pages');
         if (xpEl) xpEl.textContent = state.xp;
         if (lvlEl) lvlEl.textContent = state.level;
         if (streakEl) streakEl.textContent = state.streak;
-        if (pagesEl) pagesEl.textContent = state.storyPagesUnlocked;
+
+        // Story pages in practice (for current topic)
+        const pagesEl = document.getElementById('stats-pages');
+        const progress = getCurrentStoryProgress();
+        const totalPages = getTotalPagesForCurrentTopic();
+        if (pagesEl && progress) {
+            pagesEl.textContent = progress.pagesUnlocked;
+        }
+        const pagesLabel = document.getElementById('stats-pages-label');
+        if (pagesLabel) {
+            pagesLabel.textContent = `/ ${totalPages}`;
+        }
 
         // XP bar
         const xpInLevel = state.xp % XP_PER_LEVEL;
@@ -541,6 +721,7 @@ const App = (() => {
     function updateTopicStats() {
         for (const topic of ['multiply_fractions', 'divide_fractions']) {
             const stats = state.topicStats[topic];
+            if (!stats) continue;
             const fill = document.getElementById(`progress-${topic}`);
             const text = document.getElementById(`progress-text-${topic}`);
             if (fill) {
@@ -548,21 +729,56 @@ const App = (() => {
                 fill.style.width = `${pct}%`;
             }
             if (text) text.textContent = `${stats.correct} correct`;
+
+            // Update per-topic story progress display
+            const storyId = Stories.getStoryIdForTopic(topic);
+            if (storyId) {
+                const progress = state.storyProgress[storyId];
+                const total = Stories.getTotalPages(storyId);
+                const storyText = document.getElementById(`story-progress-${topic}`);
+                if (storyText && progress) {
+                    storyText.textContent = `${progress.pagesUnlocked} / ${total} pages`;
+                }
+                const storyFill = document.getElementById(`story-fill-${topic}`);
+                if (storyFill && progress) {
+                    storyFill.style.width = `${(progress.pagesUnlocked / total) * 100}%`;
+                }
+            }
         }
     }
 
     function updateStoryBar() {
         const fill = document.getElementById('story-bar-fill');
         const text = document.getElementById('story-bar-text');
-        if (fill) fill.style.width = `${(state.storyPagesUnlocked / TOTAL_STORY_PAGES) * 100}%`;
-        if (text) text.textContent = `${state.storyPagesUnlocked} / ${TOTAL_STORY_PAGES} pages`;
+        const progress = getCurrentStoryProgress();
+        const totalPages = getTotalPagesForCurrentTopic();
+        const storyId = getCurrentStoryId();
+        const story = storyId ? Stories.getStory(storyId) : null;
+
+        if (fill && progress) {
+            fill.style.width = `${(progress.pagesUnlocked / totalPages) * 100}%`;
+        }
+        if (text && progress && story) {
+            text.textContent = `${story.title}: ${progress.pagesUnlocked} / ${totalPages} pages`;
+        }
     }
 
-    function updateTitleStoryProgress() {
+    function updateTitleDisplay() {
+        // Show total story progress across all stories
+        let totalUnlocked = 0;
+        let totalPages = 0;
+        Stories.getAllStories().forEach(story => {
+            const progress = state.storyProgress[story.id];
+            if (progress) {
+                totalUnlocked += progress.pagesUnlocked;
+            }
+            totalPages += story.totalPages;
+        });
+
         const fill = document.getElementById('title-story-fill');
         const text = document.getElementById('title-story-text');
-        if (fill) fill.style.width = `${(state.storyPagesUnlocked / TOTAL_STORY_PAGES) * 100}%`;
-        if (text) text.textContent = `Story: ${state.storyPagesUnlocked} / ${TOTAL_STORY_PAGES} pages unlocked`;
+        if (fill) fill.style.width = `${(totalUnlocked / totalPages) * 100}%`;
+        if (text) text.textContent = `Stories: ${totalUnlocked} / ${totalPages} pages unlocked`;
     }
 
     function showXPPopup(text) {
@@ -600,8 +816,8 @@ const App = (() => {
         const data = {
             xp: state.xp,
             level: state.level,
-            storyPagesUnlocked: state.storyPagesUnlocked,
-            storyCompleted: state.storyCompleted,
+            storiesEnabled: state.storiesEnabled,
+            storyProgress: state.storyProgress,
             topicStats: state.topicStats
         };
         try {
@@ -616,9 +832,27 @@ const App = (() => {
                 const data = JSON.parse(saved);
                 state.xp = data.xp || 0;
                 state.level = data.level || 1;
-                state.storyPagesUnlocked = data.storyPagesUnlocked || 0;
-                state.storyCompleted = data.storyCompleted || false;
-                // Only load topicStats if it has the correct keys
+
+                if (typeof data.storiesEnabled === 'boolean') {
+                    state.storiesEnabled = data.storiesEnabled;
+                }
+
+                // Load story progress (new format)
+                if (data.storyProgress) {
+                    for (const key of Object.keys(state.storyProgress)) {
+                        if (data.storyProgress[key]) {
+                            state.storyProgress[key] = data.storyProgress[key];
+                        }
+                    }
+                }
+
+                // Migrate old single-story format
+                if (!data.storyProgress && typeof data.storyPagesUnlocked === 'number') {
+                    state.storyProgress.fraction_blade.pagesUnlocked = data.storyPagesUnlocked;
+                    state.storyProgress.fraction_blade.completed = data.storyCompleted || false;
+                }
+
+                // Load topicStats (validate keys)
                 if (data.topicStats &&
                     data.topicStats.multiply_fractions &&
                     data.topicStats.divide_fractions) {
@@ -634,18 +868,8 @@ const App = (() => {
         loadState();
         initParticles();
         updateStatsDisplay();
-        updateTitleStoryProgress();
-
-        // Build story bar markers
-        const markers = document.getElementById('story-bar-markers');
-        if (markers) {
-            for (let i = 0; i < TOTAL_STORY_PAGES; i++) {
-                const m = document.createElement('div');
-                m.className = 'story-bar-marker';
-                m.style.left = `${((i + 1) / TOTAL_STORY_PAGES) * 100}%`;
-                markers.appendChild(m);
-            }
-        }
+        updateTitleDisplay();
+        updateToggleButton();
 
         setInterval(saveState, 5000);
         window.addEventListener('beforeunload', saveState);
@@ -663,6 +887,7 @@ const App = (() => {
         closeLevelUp,
         showStorybook,
         closeStorybook,
-        closeStoryPage
+        closeStoryPage,
+        toggleStories
     };
 })();
