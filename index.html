@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MathQuest - Fraction Adventures</title>
+    <title>MathQuest - 6th Grade Math Adventures</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Fredoka+One&display=swap" rel="stylesheet">
@@ -38,9 +38,9 @@
                 <h1 class="game-title">
                     <span class="title-math">Math</span><span class="title-quest">Quest</span>
                 </h1>
-                <p class="game-story-title">Fraction Adventures</p>
-                <p class="subtitle">6th Grade Fraction Practice</p>
-                <p class="subtitle-small">Massachusetts Curriculum Standard 6.NS.1</p>
+                <p class="game-story-title">Math Adventures</p>
+                <p class="subtitle">6th Grade Math Practice</p>
+                <p class="subtitle-small">Massachusetts Curriculum Standards</p>
 
                 <button class="btn btn-start" onclick="App.showTopicSelect()">
                     Begin Your Quest!
@@ -129,6 +129,118 @@
                             <div class="progress-fill story-fill" id="story-fill-divide_fractions"></div>
                         </div>
                         <span class="topic-story-pages" id="story-progress-divide_fractions">0 / 15 pages</span>
+                    </div>
+                </div>
+
+                <!-- Ratios & Unit Rates -->
+                <div class="topic-card" onclick="App.selectTopic('ratios')">
+                    <div class="topic-icon">&#8758;</div>
+                    <h3>Ratios & Unit Rates</h3>
+                    <p>Understand ratios, find unit rates, and solve ratio problems</p>
+                    <div class="topic-standard">MA Standard 6.RP.1-3</div>
+                    <div class="topic-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-ratios"></div>
+                        </div>
+                        <span class="progress-text" id="progress-text-ratios">0 correct</span>
+                    </div>
+                </div>
+
+                <!-- Percents -->
+                <div class="topic-card" onclick="App.selectTopic('percents')">
+                    <div class="topic-icon">%</div>
+                    <h3>Percents</h3>
+                    <p>Calculate percent of a number, convert fractions and decimals to percents</p>
+                    <div class="topic-standard">MA Standard 6.RP.3</div>
+                    <div class="topic-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-percents"></div>
+                        </div>
+                        <span class="progress-text" id="progress-text-percents">0 correct</span>
+                    </div>
+                </div>
+
+                <!-- Long Division -->
+                <div class="topic-card" onclick="App.selectTopic('long_division')">
+                    <div class="topic-icon">&#247;</div>
+                    <h3>Long Division</h3>
+                    <p>Divide multi-digit numbers using long division</p>
+                    <div class="topic-standard">MA Standard 6.NS.2</div>
+                    <div class="topic-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-long_division"></div>
+                        </div>
+                        <span class="progress-text" id="progress-text-long_division">0 correct</span>
+                    </div>
+                </div>
+
+                <!-- Decimal Operations -->
+                <div class="topic-card" onclick="App.selectTopic('decimals')">
+                    <div class="topic-icon">.</div>
+                    <h3>Decimal Operations</h3>
+                    <p>Add, subtract, multiply, and divide decimal numbers</p>
+                    <div class="topic-standard">MA Standard 6.NS.3</div>
+                    <div class="topic-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-decimals"></div>
+                        </div>
+                        <span class="progress-text" id="progress-text-decimals">0 correct</span>
+                    </div>
+                </div>
+
+                <!-- GCF & LCM -->
+                <div class="topic-card" onclick="App.selectTopic('gcf_lcm')">
+                    <div class="topic-icon">#</div>
+                    <h3>GCF & LCM</h3>
+                    <p>Find the Greatest Common Factor and Least Common Multiple</p>
+                    <div class="topic-standard">MA Standard 6.NS.4</div>
+                    <div class="topic-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-gcf_lcm"></div>
+                        </div>
+                        <span class="progress-text" id="progress-text-gcf_lcm">0 correct</span>
+                    </div>
+                </div>
+
+                <!-- Integers -->
+                <div class="topic-card" onclick="App.selectTopic('integers')">
+                    <div class="topic-icon">&#177;</div>
+                    <h3>Integers</h3>
+                    <p>Add and subtract positive and negative numbers, absolute value</p>
+                    <div class="topic-standard">MA Standard 6.NS.5-7</div>
+                    <div class="topic-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-integers"></div>
+                        </div>
+                        <span class="progress-text" id="progress-text-integers">0 correct</span>
+                    </div>
+                </div>
+
+                <!-- Expressions & Equations -->
+                <div class="topic-card" onclick="App.selectTopic('expressions')">
+                    <div class="topic-icon">x</div>
+                    <h3>Expressions & Equations</h3>
+                    <p>Evaluate expressions, solve equations, and use exponents</p>
+                    <div class="topic-standard">MA Standard 6.EE.1-7</div>
+                    <div class="topic-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-expressions"></div>
+                        </div>
+                        <span class="progress-text" id="progress-text-expressions">0 correct</span>
+                    </div>
+                </div>
+
+                <!-- Area & Volume -->
+                <div class="topic-card" onclick="App.selectTopic('area_volume')">
+                    <div class="topic-icon">&#9651;</div>
+                    <h3>Area & Volume</h3>
+                    <p>Find area of triangles, parallelograms, and volume of prisms</p>
+                    <div class="topic-standard">MA Standard 6.G.1-4</div>
+                    <div class="topic-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-area_volume"></div>
+                        </div>
+                        <span class="progress-text" id="progress-text-area_volume">0 correct</span>
                     </div>
                 </div>
             </div>

@@ -2,10 +2,26 @@
  * MathQuest - Main Application
  *
  * Handles UI, scoring (no penalty!), story progression, and interactions.
- * Supports multiple stories (one per topic) and a story toggle.
+ * Supports 10 math topics, multiple stories, and a story toggle.
  */
 
 const App = (() => {
+    // --- Topic Config ---
+    const TOPIC_CONFIG = {
+        multiply_fractions: { label: 'Multiply Fractions', icon: '\u00D7', standard: '6.NS.1', hint: 'Enter your answer as a fraction (simplify if you can!)', inputType: 'fraction' },
+        divide_fractions:   { label: 'Divide Fractions', icon: '\u00F7', standard: '6.NS.1', hint: 'Enter your answer as a fraction (simplify if you can!)', inputType: 'fraction' },
+        ratios:             { label: 'Ratios & Unit Rates', icon: '\u2236', standard: '6.RP.1-3', hint: 'Enter your answer as a number', inputType: 'number' },
+        percents:           { label: 'Percents', icon: '%', standard: '6.RP.3', hint: 'Enter just the number (no % sign)', inputType: 'number' },
+        long_division:      { label: 'Long Division', icon: '\u00F7', standard: '6.NS.2', hint: 'Enter your answer as a number', inputType: 'number' },
+        decimals:           { label: 'Decimal Operations', icon: '.', standard: '6.NS.3', hint: 'Enter your answer as a decimal', inputType: 'number' },
+        gcf_lcm:            { label: 'GCF & LCM', icon: '#', standard: '6.NS.4', hint: 'Enter your answer as a number', inputType: 'number' },
+        integers:           { label: 'Integers', icon: '\u00B1', standard: '6.NS.5-7', hint: 'Enter your answer (can be negative)', inputType: 'number' },
+        expressions:        { label: 'Expressions & Equations', icon: 'x', standard: '6.EE.1-7', hint: 'Enter your answer as a number', inputType: 'number' },
+        area_volume:        { label: 'Area & Volume', icon: '\u25B3', standard: '6.G.1-4', hint: 'Enter your answer as a number', inputType: 'number' }
+    };
+
+    const ALL_TOPICS = Object.keys(TOPIC_CONFIG);
+
     // --- State ---
     const state = {
         currentScreen: 'title',
@@ -24,17 +40,16 @@ const App = (() => {
         storiesEnabled: true,
         pendingStoryPage: null,
         pendingStoryId: null,
-        // Per-topic story progress
         storyProgress: {
             fraction_blade: { pagesUnlocked: 0, completed: false },
             shadow_mirror: { pagesUnlocked: 0, completed: false },
             crystal_garden: { pagesUnlocked: 0, completed: false }
         },
-        topicStats: {
-            multiply_fractions: { correct: 0, attempted: 0 },
-            divide_fractions: { correct: 0, attempted: 0 }
-        }
+        topicStats: {}
     };
+
+    // Initialize topicStats for all topics
+    ALL_TOPICS.forEach(t => { state.topicStats[t] = { correct: 0, attempted: 0 }; });
 
     // --- Config ---
     const XP_CORRECT = 10;
@@ -45,11 +60,11 @@ const App = (() => {
     // --- Mascot Messages ---
     const messages = {
         greeting: [
-            "You got this! Let's unlock the next page!",
-            "Ready for some fractions?",
+            "You got this!",
+            "Ready for some math?",
             "I believe in you!",
-            "Let's continue the story!",
-            "Math time! What happens next?"
+            "Let's do this!",
+            "Math time!"
         ],
         correct: [
             "Amazing! You nailed it!",
@@ -58,7 +73,7 @@ const App = (() => {
             "Perfect! You're on fire!",
             "Sugoi! (That means awesome!)",
             "Brilliant answer!",
-            "You're a fraction wizard!",
+            "You're a math wizard!",
             "Exactly right!"
         ],
         correctNoStory: [
@@ -67,7 +82,6 @@ const App = (() => {
             "Perfect! You're on fire!",
             "Sugoi! (That means awesome!)",
             "Brilliant answer!",
-            "You're a fraction wizard!",
             "Exactly right!",
             "+XP! You're getting stronger!"
         ],
@@ -109,6 +123,7 @@ const App = (() => {
     // --- Helpers ---
 
     function getCurrentStoryId() {
+        if (!state.currentTopic) return null;
         return Stories.getStoryIdForTopic(state.currentTopic);
     }
 
@@ -121,6 +136,10 @@ const App = (() => {
     function getTotalPagesForCurrentTopic() {
         const storyId = getCurrentStoryId();
         return storyId ? Stories.getTotalPages(storyId) : 0;
+    }
+
+    function getTopicConfig(topic) {
+        return TOPIC_CONFIG[topic] || { label: topic, icon: '?', standard: '', hint: 'Enter your answer', inputType: 'number' };
     }
 
     // --- Screen Management ---
@@ -157,6 +176,7 @@ const App = (() => {
         switchScreen('practice');
         updateStatsDisplay();
         updateStoryBar();
+        updateStoryBarVisibility();
         setMascotMessage(pickMsg('greeting'));
         setMascotMood('happy');
         nextQuestion();
@@ -167,7 +187,6 @@ const App = (() => {
     function toggleStories() {
         state.storiesEnabled = !state.storiesEnabled;
         updateToggleButton();
-        updateStoryBarVisibility();
         saveState();
     }
 
@@ -184,21 +203,16 @@ const App = (() => {
             btn.classList.add('toggle-off');
         }
 
-        // Update subtitle text
         const subtitle = document.querySelector('#screen-topics .screen-subtitle');
         if (subtitle) {
             subtitle.textContent = state.storiesEnabled
                 ? 'Each correct answer unlocks the next page of the story!'
-                : 'Practice mode -- earn XP without story pages!';
+                : 'Practice mode \u2014 earn XP without story pages!';
         }
 
-        // Show/hide storybook access
         const bookAccess = document.querySelector('.storybook-access');
-        if (bookAccess) {
-            bookAccess.style.display = state.storiesEnabled ? '' : 'none';
-        }
+        if (bookAccess) bookAccess.style.display = state.storiesEnabled ? '' : 'none';
 
-        // Show/hide story progress on topic cards
         document.querySelectorAll('.topic-story-info').forEach(el => {
             el.style.display = state.storiesEnabled ? '' : 'none';
         });
@@ -206,13 +220,12 @@ const App = (() => {
 
     function updateStoryBarVisibility() {
         const bar = document.querySelector('.story-bar-container');
-        if (bar) {
-            bar.style.display = state.storiesEnabled ? '' : 'none';
-        }
-        const pagesStatPractice = document.getElementById('pages-stat-practice');
-        if (pagesStatPractice) {
-            pagesStatPractice.style.display = state.storiesEnabled ? '' : 'none';
-        }
+        const storyId = getCurrentStoryId();
+        const showStory = state.storiesEnabled && storyId;
+        if (bar) bar.style.display = showStory ? '' : 'none';
+
+        const pagesStat = document.getElementById('pages-stat-practice');
+        if (pagesStat) pagesStat.style.display = showStory ? '' : 'none';
     }
 
     // --- Question Flow ---
@@ -226,9 +239,9 @@ const App = (() => {
         state.currentQuestion = Questions.generate(state.currentTopic);
 
         const q = state.currentQuestion;
-        const topicLabel = state.currentTopic === 'multiply_fractions' ? 'Multiply Fractions' : 'Divide Fractions';
+        const config = getTopicConfig(state.currentTopic);
 
-        document.getElementById('question-topic').textContent = topicLabel;
+        document.getElementById('question-topic').textContent = config.label;
         document.getElementById('question-number').textContent = `Q${state.questionNumber}`;
         document.getElementById('question-text').innerHTML = q.questionHTML;
         document.getElementById('feedback').textContent = '';
@@ -237,8 +250,11 @@ const App = (() => {
         document.getElementById('btn-submit').classList.remove('hidden');
         document.getElementById('btn-submit').disabled = false;
         document.getElementById('btn-next').classList.add('hidden');
-
         document.getElementById('btn-next').textContent = 'Next Question \u2192';
+
+        // Update hint
+        const hint = document.querySelector('.answer-hint');
+        if (hint) hint.textContent = config.hint;
 
         buildAnswerInput(q);
 
@@ -255,30 +271,46 @@ const App = (() => {
 
     function buildAnswerInput(question) {
         const area = document.getElementById('answer-input-area');
-        area.innerHTML = `
-            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:center;">
+
+        if (question.answerType === 'fraction') {
+            area.innerHTML = `
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:center;">
+                    <div style="text-align:center;">
+                        <span class="frac-label">Whole (optional)</span>
+                        <input type="number" class="answer-input" id="answer-whole"
+                               placeholder="0" style="width:80px" autocomplete="off"
+                               onkeydown="if(event.key==='Enter') App.submitAnswer()">
+                    </div>
+                    <div class="fraction-input-group">
+                        <span class="frac-label">Numerator</span>
+                        <input type="number" class="answer-input" id="answer-num"
+                               placeholder="?" autocomplete="off"
+                               onkeydown="if(event.key==='Enter') App.submitAnswer()">
+                        <div class="frac-line"></div>
+                        <input type="number" class="answer-input" id="answer-den"
+                               placeholder="?" autocomplete="off"
+                               onkeydown="if(event.key==='Enter') App.submitAnswer()">
+                        <span class="frac-label">Denominator</span>
+                    </div>
+                </div>
+            `;
+        } else {
+            area.innerHTML = `
                 <div style="text-align:center;">
-                    <span class="frac-label">Whole (optional)</span>
-                    <input type="number" class="answer-input" id="answer-whole"
-                           placeholder="0" style="width:80px" autocomplete="off"
+                    <input type="number" class="answer-input answer-single" id="answer-number"
+                           placeholder="?" step="any" autocomplete="off"
+                           style="width:180px; font-size:1.6rem;"
                            onkeydown="if(event.key==='Enter') App.submitAnswer()">
                 </div>
-                <div class="fraction-input-group">
-                    <span class="frac-label">Numerator</span>
-                    <input type="number" class="answer-input" id="answer-num"
-                           placeholder="?" autocomplete="off"
-                           onkeydown="if(event.key==='Enter') App.submitAnswer()">
-                    <div class="frac-line"></div>
-                    <input type="number" class="answer-input" id="answer-den"
-                           placeholder="?" autocomplete="off"
-                           onkeydown="if(event.key==='Enter') App.submitAnswer()">
-                    <span class="frac-label">Denominator</span>
-                </div>
-            </div>
-        `;
+            `;
+        }
     }
 
     function getUserAnswer() {
+        const numberInput = document.getElementById('answer-number');
+        if (numberInput) {
+            return { number: numberInput.value };
+        }
         return {
             whole: document.getElementById('answer-whole').value,
             num: document.getElementById('answer-num').value,
@@ -292,10 +324,14 @@ const App = (() => {
         const q = state.currentQuestion;
         const userAnswer = getUserAnswer();
 
-        // Need at least whole OR (numerator AND denominator)
-        const hasWhole = userAnswer.whole !== '' && userAnswer.whole !== undefined;
-        const hasFraction = userAnswer.num !== '' && userAnswer.den !== '';
-        if (!hasWhole && !hasFraction) return;
+        // Validate input
+        if (userAnswer.number !== undefined) {
+            if (userAnswer.number === '') return;
+        } else {
+            const hasWhole = userAnswer.whole !== '' && userAnswer.whole !== undefined;
+            const hasFraction = userAnswer.num !== '' && userAnswer.den !== '';
+            if (!hasWhole && !hasFraction) return;
+        }
 
         state.sessionAttempted++;
         if (state.topicStats[state.currentTopic]) {
@@ -346,7 +382,7 @@ const App = (() => {
         }
         addXP(xpGain);
 
-        // Story unlock (only if stories enabled)
+        // Story unlock (only if stories enabled AND topic has a story)
         const storyId = getCurrentStoryId();
         const progress = getCurrentStoryProgress();
         const totalPages = getTotalPagesForCurrentTopic();
@@ -357,24 +393,20 @@ const App = (() => {
             progress.pagesUnlocked++;
             updateStoryBar();
 
-            // Show toast
             const page = Stories.getPage(storyId, state.pendingStoryPage);
             if (page) {
                 const story = Stories.getStory(storyId);
                 showStoryToast(state.pendingStoryPage + 1, page.title, story.title);
             }
 
-            // Update button
             const nextBtn = document.getElementById('btn-next');
             nextBtn.innerHTML = '&#128214; Read Next Story Page! \u2192';
 
-            // Check story complete
             if (progress.pagesUnlocked >= totalPages && !progress.completed) {
                 progress.completed = true;
             }
         }
 
-        // Also unlock bonus story pages if both main stories are done
         checkBonusStoryUnlock();
 
         // UI
@@ -412,7 +444,6 @@ const App = (() => {
     }
 
     function checkBonusStoryUnlock() {
-        // Bonus story "crystal_garden" unlocks pages when BOTH main stories are complete
         const fb = state.storyProgress.fraction_blade;
         const sm = state.storyProgress.shadow_mirror;
         if (!fb.completed || !sm.completed) return;
@@ -445,7 +476,7 @@ const App = (() => {
         setMascotMood('sad');
     }
 
-    // --- After answering, decide what to show ---
+    // --- After answering ---
 
     function afterAnswer() {
         if (state.pendingStoryPage !== null && state.pendingStoryId) {
@@ -462,10 +493,8 @@ const App = (() => {
         const story = Stories.getStory(storyId);
         if (!page || !story) { nextQuestion(); return; }
 
-        const totalPages = story.totalPages;
-
         document.getElementById('story-chapter').textContent = `Chapter ${page.chapter}`;
-        document.getElementById('story-page-count').textContent = `Page ${pageIndex + 1} / ${totalPages}`;
+        document.getElementById('story-page-count').textContent = `Page ${pageIndex + 1} / ${story.totalPages}`;
         document.getElementById('story-page-title').textContent = page.title;
         document.getElementById('story-art').innerHTML = page.art;
         document.getElementById('story-text').textContent = page.text;
@@ -477,7 +506,7 @@ const App = (() => {
         const actionBtn = document.querySelector('.story-page-actions .btn-next-story');
         const progress = state.storyProgress[storyId];
 
-        if (progress && progress.completed && pageIndex === totalPages - 1) {
+        if (progress && progress.completed && pageIndex === story.totalPages - 1) {
             actionBtn.textContent = 'Story Complete! \u2192';
             actionBtn.onclick = () => { showStoryComplete(storyId); };
         } else {
@@ -509,19 +538,13 @@ const App = (() => {
         document.getElementById('complete-xp').textContent = state.xp;
         document.getElementById('complete-level').textContent = state.level;
         document.getElementById('complete-story-name').textContent = story.title;
-        document.getElementById('complete-pages-display').textContent =
-            `${story.totalPages}/${story.totalPages}`;
+        document.getElementById('complete-pages-display').textContent = `${story.totalPages}/${story.totalPages}`;
 
-        // Check if bonus unlocked
         const fb = state.storyProgress.fraction_blade;
         const sm = state.storyProgress.shadow_mirror;
         const bonusNotice = document.getElementById('bonus-notice');
         if (bonusNotice) {
-            if (fb.completed && sm.completed) {
-                bonusNotice.classList.remove('hidden');
-            } else {
-                bonusNotice.classList.add('hidden');
-            }
+            bonusNotice.classList.toggle('hidden', !(fb.completed && sm.completed));
         }
 
         switchScreen('story-complete');
@@ -543,15 +566,11 @@ const App = (() => {
         const container = document.getElementById('storybook-stories');
         container.innerHTML = '';
 
-        // Show main stories
-        const mainStories = Stories.getMainStories();
-        mainStories.forEach(story => {
+        Stories.getMainStories().forEach(story => {
             container.appendChild(renderStorySection(story));
         });
 
-        // Show bonus stories if unlocked
-        const bonusStories = Stories.getBonusStories();
-        bonusStories.forEach(story => {
+        Stories.getBonusStories().forEach(story => {
             const progress = state.storyProgress[story.id];
             if (progress && progress.pagesUnlocked > 0) {
                 container.appendChild(renderStorySection(story));
@@ -675,13 +694,11 @@ const App = (() => {
     // --- UI Updates ---
 
     function updateStatsDisplay() {
-        // Topic screen
         const xpTopics = document.getElementById('stats-xp-topics');
         const lvlTopics = document.getElementById('stats-level-topics');
         if (xpTopics) xpTopics.textContent = state.xp;
         if (lvlTopics) lvlTopics.textContent = state.level;
 
-        // Practice screen
         const xpEl = document.getElementById('stats-xp');
         const lvlEl = document.getElementById('stats-level');
         const streakEl = document.getElementById('stats-streak');
@@ -689,19 +706,13 @@ const App = (() => {
         if (lvlEl) lvlEl.textContent = state.level;
         if (streakEl) streakEl.textContent = state.streak;
 
-        // Story pages in practice (for current topic)
         const pagesEl = document.getElementById('stats-pages');
         const progress = getCurrentStoryProgress();
         const totalPages = getTotalPagesForCurrentTopic();
-        if (pagesEl && progress) {
-            pagesEl.textContent = progress.pagesUnlocked;
-        }
+        if (pagesEl && progress) pagesEl.textContent = progress.pagesUnlocked;
         const pagesLabel = document.getElementById('stats-pages-label');
-        if (pagesLabel) {
-            pagesLabel.textContent = `/ ${totalPages}`;
-        }
+        if (pagesLabel) pagesLabel.textContent = `/ ${totalPages}`;
 
-        // XP bar
         const xpInLevel = state.xp % XP_PER_LEVEL;
         const xpFill = document.getElementById('xp-fill');
         const xpText = document.getElementById('xp-text');
@@ -719,7 +730,7 @@ const App = (() => {
     }
 
     function updateTopicStats() {
-        for (const topic of ['multiply_fractions', 'divide_fractions']) {
+        for (const topic of ALL_TOPICS) {
             const stats = state.topicStats[topic];
             if (!stats) continue;
             const fill = document.getElementById(`progress-${topic}`);
@@ -730,19 +741,15 @@ const App = (() => {
             }
             if (text) text.textContent = `${stats.correct} correct`;
 
-            // Update per-topic story progress display
+            // Story progress for topics that have stories
             const storyId = Stories.getStoryIdForTopic(topic);
             if (storyId) {
-                const progress = state.storyProgress[storyId];
+                const sp = state.storyProgress[storyId];
                 const total = Stories.getTotalPages(storyId);
                 const storyText = document.getElementById(`story-progress-${topic}`);
-                if (storyText && progress) {
-                    storyText.textContent = `${progress.pagesUnlocked} / ${total} pages`;
-                }
+                if (storyText && sp) storyText.textContent = `${sp.pagesUnlocked} / ${total} pages`;
                 const storyFill = document.getElementById(`story-fill-${topic}`);
-                if (storyFill && progress) {
-                    storyFill.style.width = `${(progress.pagesUnlocked / total) * 100}%`;
-                }
+                if (storyFill && sp) storyFill.style.width = `${(sp.pagesUnlocked / total) * 100}%`;
             }
         }
     }
@@ -755,23 +762,16 @@ const App = (() => {
         const storyId = getCurrentStoryId();
         const story = storyId ? Stories.getStory(storyId) : null;
 
-        if (fill && progress) {
-            fill.style.width = `${(progress.pagesUnlocked / totalPages) * 100}%`;
-        }
-        if (text && progress && story) {
-            text.textContent = `${story.title}: ${progress.pagesUnlocked} / ${totalPages} pages`;
-        }
+        if (fill && progress) fill.style.width = `${(progress.pagesUnlocked / totalPages) * 100}%`;
+        if (text && progress && story) text.textContent = `${story.title}: ${progress.pagesUnlocked} / ${totalPages} pages`;
     }
 
     function updateTitleDisplay() {
-        // Show total story progress across all stories
         let totalUnlocked = 0;
         let totalPages = 0;
         Stories.getAllStories().forEach(story => {
             const progress = state.storyProgress[story.id];
-            if (progress) {
-                totalUnlocked += progress.pagesUnlocked;
-            }
+            if (progress) totalUnlocked += progress.pagesUnlocked;
             totalPages += story.totalPages;
         });
 
@@ -837,7 +837,7 @@ const App = (() => {
                     state.storiesEnabled = data.storiesEnabled;
                 }
 
-                // Load story progress (new format)
+                // Load story progress
                 if (data.storyProgress) {
                     for (const key of Object.keys(state.storyProgress)) {
                         if (data.storyProgress[key]) {
@@ -852,11 +852,13 @@ const App = (() => {
                     state.storyProgress.fraction_blade.completed = data.storyCompleted || false;
                 }
 
-                // Load topicStats (validate keys)
-                if (data.topicStats &&
-                    data.topicStats.multiply_fractions &&
-                    data.topicStats.divide_fractions) {
-                    state.topicStats = data.topicStats;
+                // Load topicStats - merge with defaults so new topics get initialized
+                if (data.topicStats) {
+                    for (const topic of ALL_TOPICS) {
+                        if (data.topicStats[topic]) {
+                            state.topicStats[topic] = data.topicStats[topic];
+                        }
+                    }
                 }
             }
         } catch (e) {}
