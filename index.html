@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MathQuest - 6th Grade Math Adventures</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Fredoka+One&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Floating particles background -->
+    <div id="particles"></div>
+
+    <!-- Main App Container -->
+    <div id="app">
+
+        <!-- ===== TITLE SCREEN ===== -->
+        <div id="screen-title" class="screen active">
+            <div class="title-container">
+                <div class="mascot-large">
+                    <div class="mascot-sprite" id="mascot-title">
+                        <div class="mascot-body"></div>
+                        <div class="mascot-face">
+                            <div class="mascot-eyes">
+                                <div class="eye left"></div>
+                                <div class="eye right"></div>
+                            </div>
+                            <div class="mascot-mouth happy"></div>
+                        </div>
+                        <div class="mascot-hat"></div>
+                        <div class="sparkle s1">&#10022;</div>
+                        <div class="sparkle s2">&#10022;</div>
+                        <div class="sparkle s3">&#10022;</div>
+                    </div>
+                </div>
+                <h1 class="game-title">
+                    <span class="title-math">Math</span><span class="title-quest">Quest</span>
+                </h1>
+                <p class="game-story-title">Math Adventures</p>
+                <p class="subtitle">6th Grade Math Practice</p>
+                <p class="subtitle-small">Massachusetts Curriculum Standards</p>
+
+                <button class="btn btn-start" onclick="App.showTopicSelect()">
+                    Begin Your Quest!
+                    <span class="btn-sparkle">&#9733;</span>
+                </button>
+
+                <!-- Story progress on title -->
+                <div class="title-story-progress" id="title-story-progress">
+                    <div class="story-book-icon">&#128214;</div>
+                    <div class="story-progress-info">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="title-story-fill"></div>
+                        </div>
+                        <span class="progress-text" id="title-story-text">Stories: 0 / 45 pages unlocked</span>
+                    </div>
+                    <button class="btn btn-storybook" onclick="App.showStorybook()">Read Stories</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== TOPIC SELECT SCREEN ===== -->
+        <div id="screen-topics" class="screen">
+            <div class="top-bar">
+                <button class="btn btn-back" onclick="App.showTitle()">&#8592; Back</button>
+                <div class="player-stats">
+                    <div class="stat">
+                        <span class="stat-icon">&#9733;</span>
+                        <span class="stat-value" id="stats-xp-topics">0</span>
+                        <span class="stat-label">XP</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-icon">&#9775;</span>
+                        <span class="stat-value" id="stats-level-topics">1</span>
+                        <span class="stat-label">Level</span>
+                    </div>
+                </div>
+            </div>
+
+            <h2 class="screen-title">Choose Your Quest</h2>
+            <p class="screen-subtitle">Each correct answer unlocks the next page of the story!</p>
+
+            <!-- Story Toggle Button -->
+            <div class="story-toggle-container">
+                <button class="btn btn-toggle toggle-on" id="btn-toggle-stories" onclick="App.toggleStories()">
+                    &#128214; Stories: ON
+                </button>
+            </div>
+
+            <div class="topic-grid">
+                <!-- Multiply Fractions -->
+                <div class="topic-card" onclick="App.selectTopic('multiply_fractions')">
+                    <div class="topic-icon">&#215;</div>
+                    <h3>Multiply Fractions</h3>
+                    <p>Multiply fractions, whole numbers by fractions, and mixed numbers</p>
+                    <div class="topic-standard">MA Standard 6.NS.1</div>
+                    <div class="topic-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-multiply_fractions"></div>
+                        </div>
+                        <span class="progress-text" id="progress-text-multiply_fractions">0 correct</span>
+                    </div>
+                    <div class="topic-story-info">
+                        <span class="topic-story-label">&#128214; The Fraction Blade</span>
+                        <div class="progress-bar small">
+                            <div class="progress-fill story-fill" id="story-fill-multiply_fractions"></div>
+                        </div>
+                        <span class="topic-story-pages" id="story-progress-multiply_fractions">0 / 20 pages</span>
+                    </div>
+                </div>
+
+                <!-- Divide Fractions -->
+                <div class="topic-card" onclick="App.selectTopic('divide_fractions')">
+                    <div class="topic-icon">&#247;</div>
+                    <h3>Divide Fractions</h3>
+                    <p>Divide fractions, whole numbers by fractions, and mixed numbers</p>
+                    <div class="topic-standard">MA Standard 6.NS.1</div>
+                    <div class="topic-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-divide_fractions"></div>
+                        </div>
+                        <span class="progress-text" id="progress-text-divide_fractions">0 correct</span>
+                    </div>
+                    <div class="topic-story-info">
+                        <span class="topic-story-label">&#128214; The Shadow Mirror</span>
+                        <div class="progress-bar small">
+                            <div class="progress-fill story-fill" id="story-fill-divide_fractions"></div>
+                        </div>
+                        <span class="topic-story-pages" id="story-progress-divide_fractions">0 / 15 pages</span>
+                    </div>
+                </div>
+
+                <!-- Ratios & Unit Rates -->
+                <div class="topic-card" onclick="App.selectTopic('ratios')">
+                    <div class="topic-icon">&#8758;</div>
+                    <h3>Ratios & Unit Rates</h3>
+                    <p>Understand ratios, find unit rates, and solve ratio problems</p>
+                    <div class="topic-standard">MA Standard 6.RP.1-3</div>
+                    <div class="topic-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-ratios"></div>
+                        </div>
+                        <span class="progress-text" id="progress-text-ratios">0 correct</span>
+                    </div>
+                </div>
+
+                <!-- Percents -->
+                <div class="topic-card" onclick="App.selectTopic('percents')">
+                    <div class="topic-icon">%</div>
+                    <h3>Percents</h3>
+                    <p>Calculate percent of a number, convert fractions and decimals to percents</p>
+                    <div class="topic-standard">MA Standard 6.RP.3</div>
+                    <div class="topic-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-percents"></div>
+                        </div>
+                        <span class="progress-text" id="progress-text-percents">0 correct</span>
+                    </div>
+                </div>
+
+                <!-- Long Division -->
+                <div class="topic-card" onclick="App.selectTopic('long_division')">
+                    <div class="topic-icon">&#247;</div>
+                    <h3>Long Division</h3>
+                    <p>Divide multi-digit numbers using long division</p>
+                    <div class="topic-standard">MA Standard 6.NS.2</div>
+                    <div class="topic-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-long_division"></div>
+                        </div>
+                        <span class="progress-text" id="progress-text-long_division">0 correct</span>
+                    </div>
+                </div>
+
+                <!-- Decimal Operations -->
+                <div class="topic-card" onclick="App.selectTopic('decimals')">
+                    <div class="topic-icon">.</div>
+                    <h3>Decimal Operations</h3>
+                    <p>Add, subtract, multiply, and divide decimal numbers</p>
+                    <div class="topic-standard">MA Standard 6.NS.3</div>
+                    <div class="topic-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-decimals"></div>
+                        </div>
+                        <span class="progress-text" id="progress-text-decimals">0 correct</span>
+                    </div>
+                </div>
+
+                <!-- GCF & LCM -->
+                <div class="topic-card" onclick="App.selectTopic('gcf_lcm')">
+                    <div class="topic-icon">#</div>
+                    <h3>GCF & LCM</h3>
+                    <p>Find the Greatest Common Factor and Least Common Multiple</p>
+                    <div class="topic-standard">MA Standard 6.NS.4</div>
+                    <div class="topic-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-gcf_lcm"></div>
+                        </div>
+                        <span class="progress-text" id="progress-text-gcf_lcm">0 correct</span>
+                    </div>
+                </div>
+
+                <!-- Integers -->
+                <div class="topic-card" onclick="App.selectTopic('integers')">
+                    <div class="topic-icon">&#177;</div>
+                    <h3>Integers</h3>
+                    <p>Add and subtract positive and negative numbers, absolute value</p>
+                    <div class="topic-standard">MA Standard 6.NS.5-7</div>
+                    <div class="topic-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-integers"></div>
+                        </div>
+                        <span class="progress-text" id="progress-text-integers">0 correct</span>
+                    </div>
+                </div>
+
+                <!-- Expressions & Equations -->
+                <div class="topic-card" onclick="App.selectTopic('expressions')">
+                    <div class="topic-icon">x</div>
+                    <h3>Expressions & Equations</h3>
+                    <p>Evaluate expressions, solve equations, and use exponents</p>
+                    <div class="topic-standard">MA Standard 6.EE.1-7</div>
+                    <div class="topic-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-expressions"></div>
+                        </div>
+                        <span class="progress-text" id="progress-text-expressions">0 correct</span>
+                    </div>
+                </div>
+
+                <!-- Area & Volume -->
+                <div class="topic-card" onclick="App.selectTopic('area_volume')">
+                    <div class="topic-icon">&#9651;</div>
+                    <h3>Area & Volume</h3>
+                    <p>Find area of triangles, parallelograms, and volume of prisms</p>
+                    <div class="topic-standard">MA Standard 6.G.1-4</div>
+                    <div class="topic-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-area_volume"></div>
+                        </div>
+                        <span class="progress-text" id="progress-text-area_volume">0 correct</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Storybook button -->
+            <div class="storybook-access">
+                <button class="btn btn-storybook-large" onclick="App.showStorybook()">
+                    &#128214; Open Storybook
+                </button>
+            </div>
+        </div>
+
+        <!-- ===== PRACTICE SCREEN ===== -->
+        <div id="screen-practice" class="screen">
+            <div class="top-bar">
+                <button class="btn btn-back" onclick="App.showTopicSelect()">&#8592; Topics</button>
+                <div class="player-stats">
+                    <div class="stat streak-stat">
+                        <span class="stat-icon">&#128293;</span>
+                        <span class="stat-value" id="stats-streak">0</span>
+                        <span class="stat-label">Streak</span>
+                    </div>
+                    <div class="stat" id="pages-stat-practice">
+                        <span class="stat-icon">&#128214;</span>
+                        <span class="stat-value" id="stats-pages">0</span>
+                        <span class="stat-label" id="stats-pages-label">/ 20</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-icon">&#9733;</span>
+                        <span class="stat-value" id="stats-xp">0</span>
+                        <span class="stat-label">XP</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-icon">&#9775;</span>
+                        <span class="stat-value" id="stats-level">1</span>
+                        <span class="stat-label">Level</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Story progress bar -->
+            <div class="story-bar-container">
+                <div class="story-bar-label">
+                    <span>&#128214; Story Progress</span>
+                    <span id="story-bar-text">0 / 20 pages</span>
+                </div>
+                <div class="story-bar">
+                    <div class="story-bar-fill" id="story-bar-fill"></div>
+                </div>
+            </div>
+
+            <!-- XP Bar -->
+            <div class="xp-bar-container">
+                <div class="xp-bar">
+                    <div class="xp-fill" id="xp-fill"></div>
+                </div>
+                <span class="xp-text" id="xp-text">0 / 100 XP to Level 2</span>
+            </div>
+
+            <!-- Mascot (small) -->
+            <div class="mascot-small" id="mascot-practice">
+                <div class="mascot-sprite small">
+                    <div class="mascot-body"></div>
+                    <div class="mascot-face">
+                        <div class="mascot-eyes">
+                            <div class="eye left"></div>
+                            <div class="eye right"></div>
+                        </div>
+                        <div class="mascot-mouth happy"></div>
+                    </div>
+                    <div class="mascot-hat"></div>
+                </div>
+                <div class="speech-bubble" id="speech-bubble">
+                    <p id="mascot-message">You got this!</p>
+                </div>
+            </div>
+
+            <!-- Question Area -->
+            <div class="question-card" id="question-card">
+                <div class="question-header">
+                    <span class="question-topic" id="question-topic">Multiply Fractions</span>
+                    <span class="question-number" id="question-number">Q1</span>
+                </div>
+                <div class="question-body">
+                    <p class="question-text" id="question-text">Loading...</p>
+                </div>
+                <div class="answer-area">
+                    <p class="answer-hint">Enter your answer as a fraction (simplify if you can!)</p>
+                    <div id="answer-input-area">
+                        <!-- Dynamic answer inputs go here -->
+                    </div>
+                    <button class="btn btn-submit" id="btn-submit" onclick="App.submitAnswer()">
+                        Check Answer &#10003;
+                    </button>
+                </div>
+                <div class="feedback" id="feedback"></div>
+                <div class="explanation" id="explanation"></div>
+                <button class="btn btn-next hidden" id="btn-next" onclick="App.afterAnswer()">
+                    Continue &#8594;
+                </button>
+            </div>
+
+            <!-- Session stats -->
+            <div class="session-stats">
+                <div class="session-stat">
+                    <span class="session-stat-value" id="session-correct">0</span>
+                    <span class="session-stat-label">Correct</span>
+                </div>
+                <div class="session-stat">
+                    <span class="session-stat-value" id="session-attempted">0</span>
+                    <span class="session-stat-label">Attempted</span>
+                </div>
+                <div class="session-stat">
+                    <span class="session-stat-value" id="session-accuracy">0%</span>
+                    <span class="session-stat-label">Accuracy</span>
+                </div>
+                <div class="session-stat">
+                    <span class="session-stat-value" id="session-best-streak">0</span>
+                    <span class="session-stat-label">Best Streak</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== STORY PAGE SCREEN ===== -->
+        <div id="screen-story-page" class="screen">
+            <div class="story-page-container">
+                <div class="story-page-header">
+                    <span class="story-chapter" id="story-chapter">Chapter 1</span>
+                    <span class="story-name-display" id="story-name-display">The Fraction Blade</span>
+                    <span class="story-page-count" id="story-page-count">Page 1 / 20</span>
+                </div>
+                <h2 class="story-page-title" id="story-page-title">The Mysterious Scroll</h2>
+                <div class="story-art" id="story-art">
+                    <!-- Scene art rendered here -->
+                </div>
+                <div class="story-text" id="story-text">
+                    <!-- Story paragraph here -->
+                </div>
+                <div class="story-page-actions">
+                    <button class="btn btn-next-story" onclick="App.closeStoryPage()">
+                        Keep Practicing! &#8594;
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== STORYBOOK SCREEN ===== -->
+        <div id="screen-storybook" class="screen">
+            <div class="top-bar">
+                <button class="btn btn-back" onclick="App.closeStorybook()">&#8592; Back</button>
+                <h2 class="storybook-title">&#128214; Storybook</h2>
+            </div>
+            <div id="storybook-stories">
+                <!-- Filled dynamically with story sections -->
+            </div>
+        </div>
+
+        <!-- ===== STORY COMPLETE SCREEN ===== -->
+        <div id="screen-story-complete" class="screen">
+            <div class="story-complete-container">
+                <div class="complete-sparkles">
+                    <span>&#10022;</span><span>&#9733;</span><span>&#10022;</span>
+                    <span>&#9733;</span><span>&#10022;</span><span>&#9733;</span>
+                </div>
+                <h1 class="complete-title">Story Complete!</h1>
+                <div class="complete-art">
+                    <div class="story-scene scene-ending">
+                        <div class="scene-bg sunrise"></div>
+                        <div class="scene-effect sparkles ending"></div>
+                    </div>
+                </div>
+                <h2 class="complete-story-name" id="complete-story-name">The Fraction Blade</h2>
+                <p class="complete-message">You finished the entire story! Amazing work!</p>
+                <div class="complete-stats">
+                    <div class="complete-stat">
+                        <span class="complete-stat-value" id="complete-xp">0</span>
+                        <span class="complete-stat-label">Total XP</span>
+                    </div>
+                    <div class="complete-stat">
+                        <span class="complete-stat-value" id="complete-level">1</span>
+                        <span class="complete-stat-label">Level</span>
+                    </div>
+                    <div class="complete-stat">
+                        <span class="complete-stat-value" id="complete-pages-display">20/20</span>
+                        <span class="complete-stat-label">Pages</span>
+                    </div>
+                </div>
+                <div class="bonus-notice hidden" id="bonus-notice">
+                    <p>&#127775; Both main stories complete! Bonus story "The Crystal Garden" is unlocking in the Storybook!</p>
+                </div>
+                <button class="btn btn-start" onclick="App.showStorybook()">&#128214; Read Full Story</button>
+                <button class="btn btn-continue-practice" onclick="App.showTopicSelect()">Keep Practicing!</button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Level Up Modal -->
+    <div class="modal-overlay hidden" id="modal-levelup">
+        <div class="modal">
+            <div class="modal-sparkles">
+                <span>&#10022;</span><span>&#9733;</span><span>&#10022;</span>
+                <span>&#9733;</span><span>&#10022;</span><span>&#9733;</span>
+            </div>
+            <h2>Level Up!</h2>
+            <div class="level-up-number" id="levelup-number">2</div>
+            <p id="levelup-message">Amazing work! Keep going!</p>
+            <button class="btn btn-start" onclick="App.closeLevelUp()">Continue!</button>
+        </div>
+    </div>
+
+    <!-- Story unlock notification -->
+    <div class="story-unlock-toast hidden" id="story-unlock-toast">
+        <div class="toast-icon">&#128214;</div>
+        <div class="toast-text">
+            <strong>New Story Page Unlocked!</strong>
+            <span id="toast-page-name">The Fraction Blade - Page 1: The Mysterious Scroll</span>
+        </div>
+    </div>
+
+    <script src="js/story.js"></script>
+    <script src="js/questions.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
